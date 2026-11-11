@@ -115,6 +115,12 @@ The shared sandbox keys are public, so other people may be testing with them at 
 
 While the Google project is in **Testing**, the refresh token stops working after **7 days**. Get a new one (steps 4–6) the day before you present.
 
+**If the email doesn't arrive**, look for a line starting with `SmartRide Gmail:` in `C:\xampp\apache\logs\error.log` (or `C:\xampp\php\logs\php_error_log`). It now quotes Google's own reason. The usual ones:
+- `HTTP 403 Gmail API has not been used in project … or it is disabled`: step 1 was skipped, or done in a different project. Enable the Gmail API, wait 2–3 minutes, try again.
+- `HTTP 403 Request had insufficient authentication scopes`: the refresh token wasn't made with `gmail.send`. Redo steps 5–6.
+- `HTTP 400 invalid_grant`: the refresh token expired (7 days) or was copied wrong. Redo steps 4–6.
+- No line at all: the email you typed isn't on any SmartRide account, so nothing was sent (on purpose, see above).
+
 **Without Gmail keys (demo mode):** the reset link is written to the PHP error log (`C:\xampp\php\logs\php_error_log`), never shown on screen.
 
 ---

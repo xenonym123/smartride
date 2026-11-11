@@ -20,17 +20,18 @@ function queue_message($channel, $to, $title, $body, $link = '')
 
 function send_outbox()
 {
-    // 1. Finish the page for the browser first.
-    if (!headers_sent() && ob_get_level() > 0) {
-        while (ob_get_level() > 1) {
-            ob_end_flush();                           // put everything in one buffer
-        }
-        header('Content-Length: ' . ob_get_length()); // "this is the whole answer"
+    // 1. Finish the page for the browser first. Take the whole page out of every
+    //    buffer (XAMPP adds one of its own, output_buffering = 4096), then send it
+    //    in one go with its exact length, so the browser knows it has everything.
+    $page = '';
+    while (ob_get_level() > 0) {
+        $page = ob_get_clean() . $page;
+    }
+    if (!headers_sent()) {
+        header('Content-Length: ' . strlen($page)); // "this is the whole answer"
         header('Connection: close');
     }
-    while (ob_get_level() > 0) {
-        ob_end_flush();
-    }
+    echo $page;
     flush();
     if (session_status() === PHP_SESSION_ACTIVE) {
         session_write_close();                        // save the session now, don't block other pages

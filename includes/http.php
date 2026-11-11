@@ -40,8 +40,19 @@ function api_request($method, $url, $headers = [], $body = null, $timeout = 15, 
 
     $json = json_decode($raw, true);
     if ($status >= 400 || !is_array($json)) {
-        $detail = $json['errors'][0]['detail'] ?? ($json['errors'][0] ?? ($json['message'] ?? ('HTTP ' . $status)));
-        throw new Exception(parse_url($url, PHP_URL_HOST) . ' said no: ' . (is_string($detail) ? $detail : json_encode($detail)));
+        // Each API words its errors differently. Find the human-readable part.
+        $detail = '';
+        if (isset($json['errors'][0])) {                        // PhilSMS, OneSignal
+            $detail = $json['errors'][0]['detail'] ?? $json['errors'][0];
+        } elseif (isset($json['error']['message'])) {           // Google APIs (Gmail)
+            $detail = $json['error']['message'];
+        } elseif (isset($json['error']) && is_string($json['error'])) { // Google sign-in (token)
+            $detail = $json['error'] . (isset($json['error_description']) ? ': ' . $json['error_description'] : '');
+        } elseif (isset($json['message'])) {                    // Maya, Geoapify
+            $detail = $json['message'];
+        }
+        $detail = is_string($detail) ? $detail : json_encode($detail);
+        throw new Exception(parse_url($url, PHP_URL_HOST) . ' said no: HTTP ' . $status . ($detail !== '' ? ' ' . $detail : ''));
     }
     return $json;
 }
