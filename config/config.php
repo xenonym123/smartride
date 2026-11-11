@@ -40,7 +40,11 @@ foreach ($key_names as $key_name) {
 define('GEOAPIFY_API', 'https://api.geoapify.com/v1');
 define('MAYA_API', 'https://pg-sandbox.paymaya.com');   // Maya's sandbox (test only, no real money)
 define('ONESIGNAL_API', 'https://api.onesignal.com');
-define('PHILSMS_API', 'https://app.philsms.com/api/v3');
+// PhilSMS has two dashboards. Use the address of the one your token comes from:
+// dashboard.philsms.com (default) or app.philsms.com. A token from one is "Unauthenticated." on the other.
+if (!defined('PHILSMS_API')) {
+    define('PHILSMS_API', 'https://dashboard.philsms.com/api/v3');
+}
 define('GMAIL_API', 'https://gmail.googleapis.com/gmail/v1');
 define('GOOGLE_TOKEN_URL', 'https://oauth2.googleapis.com/token');
 

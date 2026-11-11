@@ -17,7 +17,9 @@ define('MAYA_SECRET_KEY', 'sk-X8qolYjy62kIzEbr0QRK1h4b4KDVHaNcwMYk39jInSl');
 define('ONESIGNAL_APP_ID', '');
 define('ONESIGNAL_REST_API_KEY', '');
 
-// 4. PhilSMS: app.philsms.com > Developers > API token. Each text uses credits.
+// 4. PhilSMS: dashboard.philsms.com > Developers > API token. Each text uses credits.
+//    If your account is on app.philsms.com instead, also add:
+//    define('PHILSMS_API', 'https://app.philsms.com/api/v3');
 define('PHILSMS_API_TOKEN', '');
 define('PHILSMS_SENDER_ID', 'PhilSMS');   // your approved sender name (max 11 characters)
 
