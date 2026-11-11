@@ -45,7 +45,7 @@ All keys go in **`config/keys.php`**. That file is in `.gitignore`, so git never
 | --- | --- |
 | `GEOAPIFY_API_KEY` | myprojects.geoapify.com (free, no card) |
 | `MAYA_PUBLIC_KEY`, `MAYA_SECRET_KEY` | Already filled in with Maya's **public sandbox** keys. Your own: Maya Business Manager sandbox. |
-| `PHILSMS_API_TOKEN`, `PHILSMS_SENDER_ID` | app.philsms.com → Developers. Each text uses credits. |
+| `PHILSMS_API_TOKEN`, `PHILSMS_SENDER_ID` | dashboard.philsms.com → Developers. Each text uses credits. |
 | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_SENDER` | Google Cloud. Step by step in `APIS.md`. |
 | `ONESIGNAL_APP_ID`, `ONESIGNAL_REST_API_KEY` | onesignal.com → Web app → Custom Code |
 

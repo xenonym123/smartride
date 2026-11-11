@@ -4,7 +4,7 @@
 | --- | --- | --- | --- |
 | **Geoapify** | Route landmarks A→B, bus road lines, street names, walking route, location by IP | `GEOAPIFY_API_KEY` | myprojects.geoapify.com. Free, no card. |
 | **Maya Checkout** | Wallet reloads (sandbox, test only, no real money) | `MAYA_PUBLIC_KEY`, `MAYA_SECRET_KEY` | Maya's public sandbox keys are already filled in. Your own: Maya Business Manager sandbox. |
-| **PhilSMS** | Texts: "fare paid" and "arriving near your stop" | `PHILSMS_API_TOKEN`, `PHILSMS_SENDER_ID` | app.philsms.com → Developers |
+| **PhilSMS** | Texts: "fare paid" and "arriving near your stop" | `PHILSMS_API_TOKEN`, `PHILSMS_SENDER_ID` | dashboard.philsms.com → Developers |
 | **Gmail API** | Forgot-password emails and payment receipts | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_SENDER` | Google Cloud (steps below) |
 | **OneSignal** | Push pop-ups on phones and computers | `ONESIGNAL_APP_ID`, `ONESIGNAL_REST_API_KEY` | onesignal.com → Web app → Custom Code |
 
@@ -60,7 +60,7 @@ Every route now has **landmarks from A to B**. For example, Libertad – SM Baco
 
 1. The passenger pays (QR scan).
 2. Home shows "You're riding BCN 105 · Libertad – SM Bacolod. Where are you getting off?" They pick **SM City Bacolod**.
-3. The driver's phone sends its GPS every 20 seconds. When the jeepney is within **300 m** (`ARRIVAL_RADIUS_M`, `config.php` line 47), the passenger gets: *"SmartRide: Arriving at SM City Bacolod. BCN 105 is about 250 m away. Get ready to get off."*
+3. The driver's phone sends its GPS every 20 seconds. When the jeepney is within **300 m** (`ARRIVAL_RADIUS_M`, `config.php` line 51), the passenger gets: *"SmartRide: Arriving at SM City Bacolod. BCN 105 is about 250 m away. Get ready to get off."*
 
 Texts are **off until the passenger turns them on**. Every text uses PhilSMS credits, and the demo accounts have made-up numbers that might belong to real people.
 

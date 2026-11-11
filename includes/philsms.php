@@ -4,7 +4,7 @@
 // close to the landmark where they're getting off. Only if they turned on
 // "Text me" in their Profile, because every text uses PhilSMS credits.
 //
-// Docs: https://app.philsms.com/developers/documentation
+// Docs: https://dashboard.philsms.com/developers/documentation
 
 require_once __DIR__ . '/http.php';
 
