@@ -3,6 +3,30 @@
 <?php show_flash(); ?>
 <?php include '../views/partials/alerts_banner.php'; ?>
 
+<?php if ($current_ride): ?>
+<div class="card ride-card">
+    <div class="head"><h3 style="margin:0"><?= icon('bus') ?> You're riding <?= e($current_ride['unit_code']) ?> · <?= e($current_ride['route_name']) ?></h3></div>
+    <?php if ($current_ride['dest_name'] && $current_ride['arrival_sent_at']): ?>
+        <p>You're almost at <b><?= e($current_ride['dest_name']) ?></b>. Get ready to get off.</p>
+    <?php elseif ($current_ride['dest_name']): ?>
+        <p>Getting off at <b><?= e($current_ride['dest_name']) ?></b>. When the jeepney is within <?= ARRIVAL_RADIUS_M ?> m,
+            <?php if ($me['sms_alerts']): ?>we'll text <?= e($me['phone']) ?> (PhilSMS) and send a push.<?php else: ?>you'll get a push. Turn on <a class="linkbtn" href="passenger_profile.php">Text me</a> to get an SMS too.<?php endif; ?></p>
+    <?php else: ?>
+        <p>Where are you getting off? We'll tell you when you're close.</p>
+    <?php endif; ?>
+    <form class="inline-form" method="post" action="passenger_home.php" style="margin-top:10px;flex-wrap:wrap">
+        <?= csrf_field() ?>
+        <label class="sr-only" for="stop_id">Drop-off landmark</label>
+        <select class="input" id="stop_id" name="stop_id" style="min-width:240px">
+            <?php foreach ($ride_stops as $stop): ?>
+                <option value="<?= (int) $stop['stop_id'] ?>" <?= (int) $current_ride['dest_stop_id'] === (int) $stop['stop_id'] ? 'selected' : '' ?>><?= e($stop['name']) ?></option>
+            <?php endforeach; ?>
+        </select>
+        <button class="btn sm" type="submit"><?= icon('pin') ?><?= $current_ride['dest_name'] ? 'Change drop-off' : 'Tell me when we\'re close' ?></button>
+    </form>
+</div>
+<?php endif; ?>
+
 <div class="row cols-main">
     <div class="card balance stat-card">
         <div class="label">Wallet balance</div>

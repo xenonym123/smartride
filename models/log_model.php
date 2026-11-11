@@ -16,7 +16,7 @@ function log_groups()
         'login' => ['Logins', ['login', 'logout', 'login_failed', 'register']],
         'money' => ['Reloads and fares', ['reload', 'fare_paid', 'fare_blocked']],
         'trips' => ['Trips and units', ['trip_start', 'trip_end', 'unit_status', 'unit_added', 'route_added', 'fare_changed']],
-        'admin' => ['Account changes', ['user_added', 'user_updated', 'user_status', 'profile_updated', 'password_changed', 'qr_frozen', 'qr_unfrozen']],
+        'admin' => ['Account changes', ['user_added', 'user_updated', 'user_status', 'profile_updated', 'password_changed', 'password_reset', 'qr_frozen', 'qr_unfrozen']],
     ];
 }
 

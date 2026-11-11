@@ -11,12 +11,14 @@
     <div class="card" style="padding:16px"><div class="map" id="map"><div class="map-note">Loading the map…</div></div></div>
     <div class="card">
         <h3>Units</h3>
+        <?php if (geoapify_demo_mode()): ?><p class="hint"><span class="pill pill-amber">Demo mode</span> Add a Geoapify key to show street names.</p><?php endif; ?>
         <?php $dots = ['on_trip' => 'green', 'parked' => 'brand', 'breakdown' => 'red', 'offline' => 'gray']; ?>
         <?php foreach ($fleet as $u): $dot = $dots[$u['state']]; ?>
             <div class="list-row">
                 <span class="dot <?= $dot ?>"></span>
                 <div class="who" style="flex:1"><b><?= e($u['unit_code']) ?></b>
-                    <span><?= $u['state'] === 'on_trip' ? e($u['route_name']) . ' · ' . (int) $u['onboard'] . '/' . (int) $u['capacity'] . ' · ' . e(first_name($u['driver_name'])) : 'Last seen ' . e($u['seen']) ?></span></div>
+                    <span><?= $u['state'] === 'on_trip' ? e($u['route_name']) . ' · ' . (int) $u['onboard'] . '/' . (int) $u['capacity'] . ' · ' . e(first_name($u['driver_name'])) : 'Last seen ' . e($u['seen']) ?></span>
+                    <?php if (!empty($u['address'])): ?><span class="small muted"><?= icon('pin') ?> <?= e($u['address']) ?></span><?php endif; ?></div>
                 <?= pill($u['state']) ?>
             </div>
         <?php endforeach; ?>
@@ -67,5 +69,48 @@
         </form>
     </div>
 </div>
-<script>document.addEventListener('DOMContentLoaded', () => SMARTRIDE.fleetMap('map', 'api_fleet.php'));</script>
+<div class="card" id="landmarks">
+    <div class="head"><h3>Route landmarks</h3>
+        <form method="post" action="admin_tracking.php"><?= csrf_field() ?><input type="hidden" name="action" value="refresh_routes">
+            <button class="btn sm ghost" type="submit"><?= icon('refresh') ?>Update from Geoapify</button></form>
+    </div>
+    <p class="hint" style="margin-top:-6px">Each route runs from landmark A to landmark B. New landmarks are found by name with Geoapify, and the bus road line between them is redrawn. Passengers pick one of these as their drop-off.</p>
+    <?php foreach ($routes as $r): ?>
+        <?php $stops = $route_stops[$r['route_id']]; ?>
+        <div class="route-row">
+            <div style="flex:1;min-width:0">
+                <b><?= e($r['route_name']) ?></b>
+                <div class="stops">
+                    <?php foreach ($stops as $i => $stop): ?>
+                        <form class="inline-form" method="post" action="admin_tracking.php" style="display:inline-flex;margin:2px 4px 2px 0" data-confirm="Remove <?= e($stop['name']) ?> from this route?">
+                            <?= csrf_field() ?><input type="hidden" name="action" value="delete_stop"><input type="hidden" name="stop_id" value="<?= (int) $stop['stop_id'] ?>">
+                            <span class="pill <?= $stop['geocoded'] ? 'pill-brand' : 'pill-gray' ?>" title="<?= $stop['geocoded'] ? 'Position from Geoapify' : 'Approximate position' ?>">
+                                <?= $i === 0 ? 'A · ' : ($i === count($stops) - 1 ? 'B · ' : ($i + 1) . ' · ') ?><?= e($stop['name']) ?>
+                                <button type="submit" aria-label="Remove <?= e($stop['name']) ?>" style="border:0;background:none;color:inherit;cursor:pointer;padding:0 0 0 4px">×</button>
+                            </span>
+                        </form>
+                    <?php endforeach; ?>
+                </div>
+                <form class="inline-form" method="post" action="admin_tracking.php" style="margin-top:8px;flex-wrap:wrap">
+                    <?= csrf_field() ?><input type="hidden" name="action" value="add_stop"><input type="hidden" name="route_id" value="<?= (int) $r['route_id'] ?>">
+                    <label class="sr-only" for="stop_name_<?= (int) $r['route_id'] ?>">Landmark name</label>
+                    <input class="input" id="stop_name_<?= (int) $r['route_id'] ?>" name="stop_name" maxlength="100" placeholder="Landmark, e.g. Bacolod Public Plaza" style="min-width:220px">
+                    <label class="sr-only" for="position_<?= (int) $r['route_id'] ?>">Position</label>
+                    <select class="input" id="position_<?= (int) $r['route_id'] ?>" name="position">
+                        <?php for ($p = 1; $p <= count($stops) + 1; $p++): ?>
+                            <option value="<?= $p ?>" <?= $p === count($stops) ? 'selected' : '' ?>><?= $p === 1 ? 'As new A' : ($p === count($stops) + 1 ? 'As new B' : 'Stop ' . $p) ?></option>
+                        <?php endfor; ?>
+                    </select>
+                    <button class="btn sm" type="submit"><?= icon('plus') ?>Add landmark</button>
+                </form>
+            </div>
+        </div>
+    <?php endforeach; ?>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const map = SMARTRIDE.fleetMap('map', 'api_fleet.php');
+  SMARTRIDE.drawRoutes(map, 'api_routes.php'); // GEOAPIFY bus route lines + landmarks
+});
+</script>
 <?php include '../views/partials/dashboard_bottom.php'; ?>

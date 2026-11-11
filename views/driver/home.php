@@ -38,6 +38,28 @@ page_head('Driver dashboard', 'Track your daily operations and earnings', $tools
                     <?= csrf_field() ?><input type="hidden" name="action" value="end"><button class="btn danger block" type="submit"><?= icon('stop') ?>End trip</button></form>
             </div>
             <p class="hint" style="margin-top:12px">Keep this page open on your phone. It shares your location with the map while the trip runs.</p>
+
+            <h3 style="margin:20px 0 6px">GPS simulator <span class="pill pill-amber">Demo</span></h3>
+            <p class="hint" style="margin-top:0">Moves <?= e($trip['unit_code']) ?> to a landmark on its route, as if you drove there. Riders getting off there get their "arriving" text.</p>
+            <div class="inline-form" style="flex-wrap:wrap">
+                <label class="sr-only" for="simStop">Landmark</label>
+                <select class="input" id="simStop" style="min-width:220px">
+                    <?php foreach ($trip_stops as $i => $stop): ?>
+                        <option value="<?= e($stop['latitude'] . ',' . $stop['longitude']) ?>"><?= $i === 0 ? 'A · ' : ($i === count($trip_stops) - 1 ? 'B · ' : '') ?><?= e($stop['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button class="btn sm ghost" type="button" id="simGo"><?= icon('gps') ?>Drive here</button>
+            </div>
+            <script>
+            document.getElementById('simGo').addEventListener('click', async () => {
+              const box = document.getElementById('simStop');
+              const [lat, lng] = box.value.split(',').map(Number);
+              const d = await SMARTRIDE.post('api_gps.php', { lat, lng });
+              const name = box.options[box.selectedIndex].text;
+              SMARTRIDE.toast({ title: d.ok ? 'Jeepney moved' : 'Not moved', body: d.ok ? `Now at ${name}. ${d.arrivals ? d.arrivals + ' rider(s) told they are arriving.' : 'Nobody is getting off here.'}` : 'Start a trip first.' });
+              if (d.ok && box.selectedIndex < box.options.length - 1) box.selectedIndex += 1; // next landmark
+            });
+            </script>
         <?php else: ?>
             <h3>Start a trip</h3>
             <?php if (!$units): ?>

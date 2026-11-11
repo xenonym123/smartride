@@ -132,10 +132,22 @@
     },
 
     /**
-     * NOTIFICATIONS API. Asks the server for new alerts every 10 seconds and pops each
-     * one up with the browser's Notification API. If notifications are off or blocked,
-     * the alert shows as a small card in the corner of the page instead.
+     * NOTIFICATIONS. The server saves every alert and pushes it through OneSignal.
+     * This keeps the bell in the sidebar up to date (every 10 seconds). If push isn't
+     * on for this browser, new alerts also show as a small card on the page.
      */
+    push: null, // the OneSignal SDK, once it has loaded (only when an App ID is set)
+
+    usePush(OneSignal) {
+      SMARTRIDE.push = OneSignal;
+      const banner = document.querySelector('[data-alerts-banner]');
+      if (banner && !OneSignal.User.PushSubscription.optedIn && (!('Notification' in window) || Notification.permission !== 'denied')) banner.hidden = false;
+    },
+
+    pushIsOn() {
+      return !!(SMARTRIDE.push && SMARTRIDE.push.User.PushSubscription.optedIn);
+    },
+
     notifications(url) {
       const supported = 'Notification' in window;
       const badges = () => document.querySelectorAll('[data-notif-count]');
@@ -144,10 +156,18 @@
 
       document.addEventListener('click', async (e) => {
         if (!e.target.closest('[data-enable-alerts]')) return;
+        if (banner) banner.hidden = true;
+        if (SMARTRIDE.push) {
+          // OneSignal shows the browser's "Allow notifications?" and subscribes this device.
+          await SMARTRIDE.push.User.PushSubscription.optIn();
+          if (SMARTRIDE.pushIsOn()) SMARTRIDE.toast({ title: 'Alerts are on', body: "You'll get a push for fares, reloads and low balance." });
+          else SMARTRIDE.toast({ title: 'Alerts are off', body: 'You can still see everything on the Notifications page.' });
+          return;
+        }
+        // Demo mode (no OneSignal App ID): use the browser's own notifications instead.
         if (!supported) { SMARTRIDE.toast({ title: 'Not supported', body: "This browser can't show notifications." }); return; }
         const answer = await Notification.requestPermission();
-        if (banner) banner.hidden = true;
-        if (answer === 'granted') SMARTRIDE.popup({ title: 'Alerts are on', body: "You'll get a pop-up for fares, reloads and low balance.", link: '' });
+        if (answer === 'granted') SMARTRIDE.popup({ title: 'Alerts are on (demo mode)', body: 'Add OneSignal keys in config.php for real push.', link: '' });
         else SMARTRIDE.toast({ title: 'Alerts are off', body: 'You can still see everything on the Notifications page.' });
       });
 
@@ -156,7 +176,8 @@
         let d;
         try { d = await SMARTRIDE.get(after === null ? url : `${url}?after=${after}`); } catch (e) { return; }
         badges().forEach((b) => { b.textContent = d.unread; b.hidden = !d.unread; });
-        if (after !== null) d.items.forEach((n) => SMARTRIDE.popup(n));
+        // OneSignal already pushed these. Only show them here if push is off for this browser.
+        if (after !== null && !SMARTRIDE.pushIsOn()) d.items.forEach((n) => SMARTRIDE.popup(n));
         after = d.latest;
       };
       check();
@@ -229,6 +250,36 @@
       load();
       setInterval(load, 15000);
       return map;
+    },
+
+    /**
+     * GEOAPIFY routes: draws each route's bus road line (from Geoapify routing) and its
+     * landmarks, A at the start and B at the end. onData gets the routes for a list.
+     */
+    async drawRoutes(map, url, onData) {
+      if (!map || typeof L === 'undefined') return;
+      let d;
+      try { d = await SMARTRIDE.get(url); } catch (e) { return; }
+      const colors = ['#2A20D8', '#E8590C', '#0CA678', '#C2255C', '#1971C2', '#7048E8'];
+      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      d.routes.forEach((r, i) => {
+        const color = colors[i % colors.length];
+        r.color = color;
+        if (r.points.length > 1) {
+          L.polyline(r.points, { color, weight: 4, opacity: 0.55 }).addTo(map).bindTooltip(esc(r.name), { sticky: true });
+        }
+        r.stops.forEach((s, k) => {
+          const end = k === 0 ? 'A' : (k === r.stops.length - 1 ? 'B' : '');
+          const tip = `${esc(s.name)}<br><small>${esc(r.name)}</small>`;
+          if (end) {
+            const icon = L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11], html: `<div class="stop-end" style="background:${color}">${end}</div>` });
+            L.marker([s.lat, s.lng], { icon, title: s.name }).addTo(map).bindTooltip(tip);
+          } else {
+            L.circleMarker([s.lat, s.lng], { radius: 5, color, weight: 2, fillColor: '#fff', fillOpacity: 1 }).addTo(map).bindTooltip(tip);
+          }
+        });
+      });
+      if (onData) onData(d.routes);
     },
   };
 

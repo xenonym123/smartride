@@ -17,13 +17,13 @@
             <div class="field"><label>Pay with</label>
                 <div class="methods">
                     <?php foreach (reload_methods() as $key => $label): ?>
-                        <label><input type="radio" name="method" value="<?= e($key) ?>" <?= $key === 'qrph' ? 'checked' : '' ?>><?= e($label) ?></label>
+                        <label><input type="radio" name="method" value="<?= e($key) ?>" <?= $key === 'maya' ? 'checked' : '' ?>><?= e($label) ?></label>
                     <?php endforeach; ?>
                 </div></div>
             <button class="btn lg block" type="submit">Reload wallet</button>
-            <p class="hint">QR Ph goes through <b>PayMongo</b>: you get a QR to scan with GCash, Maya or your bank app, and the money lands once PayMongo confirms it. Cash reloads are approved right away in the demo.</p>
+            <p class="hint"><b>Maya Checkout</b> opens Maya's payment page, where you pay with a card or your Maya wallet. The money lands once Maya confirms it. Cash reloads are approved right away in the demo.</p>
             <?php if ($demo_mode): ?>
-                <p class="hint"><span class="pill pill-amber">Demo mode</span> No PayMongo key is set in config.php, so QR Ph shows a sample QR with a "Simulate payment" button.</p>
+                <p class="hint"><span class="pill pill-amber">Demo mode</span> No Maya keys in config/keys.php, so Maya Checkout shows a stand-in page with a "Simulate payment" button.</p>
             <?php endif; ?>
         </form>
     </div>

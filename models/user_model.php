@@ -120,3 +120,22 @@ function count_users_by_role($conn)
     }
     return $counts;
 }
+
+// "Text me" (PhilSMS) and "Email me" (Gmail) switches on the Profile page.
+function set_alert_settings($conn, $user_id, $sms_alerts, $email_alerts)
+{
+    $sms = $sms_alerts ? 1 : 0;
+    $email = $email_alerts ? 1 : 0;
+    $stmt = $conn->prepare("UPDATE users SET sms_alerts = ?, email_alerts = ? WHERE user_id = ?");
+    $stmt->bind_param("iii", $sms, $email, $user_id);
+    $stmt->execute();
+}
+
+// For forgot password: the active account with this email, or null.
+function get_user_by_email($conn, $email)
+{
+    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ? AND status = 'active' LIMIT 1");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_assoc();
+}

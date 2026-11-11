@@ -27,6 +27,8 @@ CREATE TABLE users (
   username       VARCHAR(50) NOT NULL,
   password_hash  VARCHAR(255) NOT NULL,
   status         ENUM('active','inactive') NOT NULL DEFAULT 'active',
+  sms_alerts     TINYINT(1) NOT NULL DEFAULT 0,   -- 1 = text me through PhilSMS (the user turns it on)
+  email_alerts   TINYINT(1) NOT NULL DEFAULT 0,   -- 1 = email me payment receipts through Gmail
   created_at     DATETIME NOT NULL,
   PRIMARY KEY (user_id),
   UNIQUE KEY uq_username (username),
@@ -66,6 +68,33 @@ CREATE TABLE routes (
   PRIMARY KEY (route_id)
 ) ENGINE=InnoDB;
 
+-- Landmarks along each route, from point A (seq 1) to point B (last seq).
+-- Positions start approximate; with a Geoapify key, SmartRide looks each one up by name.
+CREATE TABLE route_stops (
+  stop_id     INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  route_id    SMALLINT UNSIGNED NOT NULL,
+  seq         TINYINT UNSIGNED NOT NULL,
+  name        VARCHAR(100) NOT NULL,
+  latitude    DECIMAL(9,6) NOT NULL,
+  longitude   DECIMAL(9,6) NOT NULL,
+  geocoded    TINYINT(1) NOT NULL DEFAULT 0,      -- 1 = position came from Geoapify
+  PRIMARY KEY (stop_id),
+  KEY idx_stops_route (route_id, seq),
+  CONSTRAINT fk_stops_route FOREIGN KEY (route_id) REFERENCES routes (route_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- The road line for each route, from Geoapify routing (mode bus), saved so it's fetched once.
+CREATE TABLE route_paths (
+  route_id    SMALLINT UNSIGNED NOT NULL,
+  points      MEDIUMTEXT NOT NULL,                -- JSON [[lat, lng], ...]
+  meters      INT UNSIGNED NOT NULL,
+  seconds     INT UNSIGNED NOT NULL,
+  source      ENUM('geoapify','straight') NOT NULL,
+  updated_at  DATETIME NOT NULL,
+  PRIMARY KEY (route_id),
+  CONSTRAINT fk_paths_route FOREIGN KEY (route_id) REFERENCES routes (route_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE jeepneys (
   unit_id      SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
   operator_id  INT UNSIGNED NOT NULL,
@@ -101,12 +130,15 @@ CREATE TABLE fare_transactions (
   amount      DECIMAL(6,2) NOT NULL,
   status      ENUM('paid','blocked_full','blocked_balance','blocked_frozen') NOT NULL,
   scanned_at  DATETIME NOT NULL,
+  dest_stop_id    INT UNSIGNED NULL,              -- where the passenger is getting off
+  arrival_sent_at DATETIME NULL,                  -- when the "arriving" SMS went out
   PRIMARY KEY (txn_id),
   KEY idx_fares_wallet (wallet_id, scanned_at),
   KEY idx_fares_trip (trip_id),
   KEY idx_fares_time (scanned_at),
   CONSTRAINT fk_fares_wallet FOREIGN KEY (wallet_id) REFERENCES wallets (wallet_id),
-  CONSTRAINT fk_fares_trip FOREIGN KEY (trip_id) REFERENCES trips (trip_id)
+  CONSTRAINT fk_fares_trip FOREIGN KEY (trip_id) REFERENCES trips (trip_id),
+  CONSTRAINT fk_fares_stop FOREIGN KEY (dest_stop_id) REFERENCES route_stops (stop_id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- Camera counts: running totals for the trip.
@@ -154,27 +186,51 @@ CREATE TABLE activity_logs (
   CONSTRAINT fk_activity_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
--- PayMongo QR Ph reloads. One row per QR shown to a passenger.
--- The wallet is only credited when PayMongo says the payment went through.
+-- Maya Checkout reloads. One row per checkout a passenger starts.
+-- The wallet is only credited after SmartRide asks Maya and Maya says PAYMENT_SUCCESS.
 CREATE TABLE payments (
-  payment_id   INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  wallet_id    INT UNSIGNED NOT NULL,
-  amount       DECIMAL(10,2) NOT NULL,
-  provider     ENUM('paymongo','demo') NOT NULL,
-  intent_id    VARCHAR(64) NULL,          -- PayMongo payment intent id (pi_...)
-  qr_image     MEDIUMTEXT NULL,           -- base64 QR image from PayMongo
-  test_url     VARCHAR(500) NULL,         -- test mode only: page to simulate the payment
-  status       ENUM('pending','paid','failed','expired','cancelled') NOT NULL DEFAULT 'pending',
-  created_at   DATETIME NOT NULL,
-  expires_at   DATETIME NOT NULL,
-  paid_at      DATETIME NULL,
+  payment_id    INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  wallet_id     INT UNSIGNED NOT NULL,
+  amount        DECIMAL(10,2) NOT NULL,
+  provider      ENUM('maya','demo') NOT NULL,
+  reference_no  VARCHAR(36) NOT NULL,             -- our requestReferenceNumber, e.g. SR-15-a1b2c3
+  checkout_id   VARCHAR(64) NULL,                 -- Maya's checkoutId (= paymentId)
+  checkout_url  VARCHAR(500) NULL,                -- Maya's payment page
+  status        ENUM('pending','paid','failed','expired','cancelled') NOT NULL DEFAULT 'pending',
+  created_at    DATETIME NOT NULL,
+  expires_at    DATETIME NOT NULL,
+  paid_at       DATETIME NULL,
   PRIMARY KEY (payment_id),
-  UNIQUE KEY uq_payments_intent (intent_id),
+  UNIQUE KEY uq_payments_ref (reference_no),
+  UNIQUE KEY uq_payments_checkout (checkout_id),
   KEY idx_payments_wallet (wallet_id, created_at),
   CONSTRAINT fk_payments_wallet FOREIGN KEY (wallet_id) REFERENCES wallets (wallet_id)
 ) ENGINE=InnoDB;
 
--- Alerts shown in the app and as browser notifications (Notification API).
+-- Street names already looked up on Geoapify (so the free daily limit lasts).
+CREATE TABLE geo_cache (
+  lat_key     DECIMAL(8,4) NOT NULL,
+  lng_key     DECIMAL(8,4) NOT NULL,
+  address     VARCHAR(255) NOT NULL,
+  created_at  DATETIME NOT NULL,
+  PRIMARY KEY (lat_key, lng_key)
+) ENGINE=InnoDB;
+
+-- Forgot-password links. Only a SHA-256 hash of the token is saved, never the token itself.
+CREATE TABLE password_resets (
+  reset_id    INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id     INT UNSIGNED NOT NULL,
+  token_hash  CHAR(64) NOT NULL,
+  created_at  DATETIME NOT NULL,
+  expires_at  DATETIME NOT NULL,
+  used_at     DATETIME NULL,
+  PRIMARY KEY (reset_id),
+  UNIQUE KEY uq_resets_token (token_hash),
+  KEY idx_resets_user (user_id, created_at),
+  CONSTRAINT fk_resets_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Alerts shown in the app and sent out by push (OneSignal), SMS (PhilSMS) and email (Gmail).
 CREATE TABLE notifications (
   notif_id    INT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id     INT UNSIGNED NOT NULL,
@@ -510,6 +566,31 @@ INSERT INTO routes (route_id, route_name, origin, destination, base_fare) VALUES
 (2, 'BATA – NGC', 'BATA', 'New Government Center', 15),
 (3, 'Mandalagan – Lopue''s East', 'Mandalagan', 'Lopue''s East', 15),
 (4, 'Downtown – BATA', 'Downtown', 'BATA', 13);
+
+-- route_stops: landmarks from A to B (approximate positions; Geoapify refines them by name)
+INSERT INTO route_stops (stop_id, route_id, seq, name, latitude, longitude, geocoded) VALUES
+(1, 1, 1, 'Libertad Public Market', 10.660400, 122.946500, 0),
+(2, 1, 2, 'Bacolod City Hall', 10.666300, 122.949000, 0),
+(3, 1, 3, 'Bacolod Public Plaza', 10.667600, 122.950300, 0),
+(4, 1, 4, 'San Sebastian Cathedral', 10.668400, 122.951300, 0),
+(5, 1, 5, 'SM City Bacolod', 10.670800, 122.943500, 0),
+(6, 2, 1, 'Bata Barangay Hall', 10.708600, 122.962400, 0),
+(7, 2, 2, 'Robinsons Place Bacolod', 10.696500, 122.963600, 0),
+(8, 2, 3, 'University of St. La Salle', 10.679500, 122.962000, 0),
+(9, 2, 4, 'Riverside Medical Center', 10.674100, 122.962100, 0),
+(10, 2, 5, 'Lopue''s East Centrale', 10.664200, 122.965900, 0),
+(11, 2, 6, 'New Government Center', 10.665500, 122.979000, 0),
+(12, 3, 1, 'Lopue''s Mandalagan', 10.700500, 122.962500, 0),
+(13, 3, 2, 'Robinsons Place Bacolod', 10.696500, 122.963600, 0),
+(14, 3, 3, 'University of St. La Salle', 10.679500, 122.962000, 0),
+(15, 3, 4, 'Bacolod Doctors'' Hospital', 10.672600, 122.960000, 0),
+(16, 3, 5, 'Lopue''s East Centrale', 10.664200, 122.965900, 0),
+(17, 4, 1, 'Bacolod Central Market', 10.665800, 122.952800, 0),
+(18, 4, 2, 'Negros Occidental Provincial Capitol', 10.676800, 122.950900, 0),
+(19, 4, 3, 'Ayala Malls Capitol Central', 10.673700, 122.949700, 0),
+(20, 4, 4, 'University of St. La Salle', 10.679500, 122.962000, 0),
+(21, 4, 5, 'Robinsons Place Bacolod', 10.696500, 122.963600, 0),
+(22, 4, 6, 'Bata Barangay Hall', 10.708600, 122.962400, 0);
 
 -- jeepneys (5 rows)
 INSERT INTO jeepneys (unit_id, operator_id, unit_code, plate_no, capacity, status) VALUES

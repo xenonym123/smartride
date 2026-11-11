@@ -19,6 +19,7 @@ $log_labels = [
     'user_status'      => ['user', 'amber', 'Account status'],
     'profile_updated'  => ['edit', '', 'Profile updated'],
     'password_changed' => ['lock', '', 'Password changed'],
+    'password_reset'   => ['lock', 'amber', 'Reset link asked'],
     'qr_frozen'        => ['snow', 'red', 'QR frozen'],
     'qr_unfrozen'      => ['qr', 'green', 'QR unfrozen'],
 ];

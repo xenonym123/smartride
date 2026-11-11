@@ -32,7 +32,7 @@
         <h2>Three steps, no coins</h2>
         <div class="grid-3">
             <div class="step"><div class="n">1</div><h3>Sign up</h3><p>Make a passenger account. Your wallet and your ride QR come with it.</p></div>
-            <div class="step"><div class="n">2</div><h3>Load your wallet</h3><p>Pay by QR Ph with GCash, Maya or your bank app (through PayMongo), or with cash at a partner store or kiosk.</p></div>
+            <div class="step"><div class="n">2</div><h3>Load your wallet</h3><p>Pay with a card or your Maya wallet through Maya Checkout, or with cash at a partner store or kiosk.</p></div>
             <div class="step"><div class="n">3</div><h3>Show your QR</h3><p>Hold it up to the scanner when you board. The fare comes out of your wallet.</p></div>
         </div>
     </div>

@@ -1,12 +1,14 @@
 <?php
 // Admin: Jeepney Tracking. The live map, the fleet, and the routes and fares.
 // The forms on this page post here with a hidden "action":
-//   add_unit, unit_status, add_route, route_fare
+//   add_unit, unit_status, add_route, route_fare, add_stop, delete_stop, refresh_routes
 require_once '../config/db_connect.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../models/fare_model.php';
 require_once '../models/fleet_model.php';
+require_once '../includes/geoapify.php';
+require_once '../models/route_model.php';
 
 session_start();
 require_role('admin');
@@ -73,10 +75,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $back = 'admin_tracking.php#routes';
     }
 
+    // ---- Route landmarks (Geoapify) ----
+    if ($action === 'add_stop') {
+        $route_id = (int) input('route_id');
+        $name = mb_substr(input('stop_name'), 0, 100);
+        $count = count(get_route_stops($conn, $route_id));
+        $position = max(1, min($count + 1, (int) input('position', (string) ($count + 1))));
+
+        if (!get_route($conn, $route_id) || mb_strlen($name) < 3) {
+            flash('error', 'Pick a route and type the landmark name, like "Robinsons Place Bacolod".');
+        } elseif (geoapify_demo_mode()) {
+            flash('error', 'Add a Geoapify key in config/keys.php so SmartRide can find new landmarks on the map.');
+        } else {
+            try {
+                $place = geoapify_find_place($name);   // GEOAPIFY forward geocoding
+            } catch (Exception $ex) {
+                error_log('SmartRide Geoapify: ' . $ex->getMessage());
+                $place = null;
+            }
+            if ($place) {
+                add_route_stop($conn, $route_id, $position, $name, $place['lat'], $place['lng'], 1);
+                add_log($conn, $admin_id, 'route_added', 'Added landmark ' . $name . ' to route #' . $route_id);
+                flash('success', $name . ' added. Geoapify found it at ' . $place['address'] . '.');
+            } else {
+                flash('error', "Geoapify couldn't find \"" . $name . "\" in Bacolod. Try the full name.");
+            }
+        }
+        $back = 'admin_tracking.php#landmarks';
+    }
+
+    if ($action === 'delete_stop') {
+        if (delete_route_stop($conn, (int) input('stop_id'))) {
+            add_log($conn, $admin_id, 'route_added', 'Removed a landmark from a route');
+            flash('success', 'Landmark removed. The route line will be redrawn.');
+        }
+        $back = 'admin_tracking.php#landmarks';
+    }
+
+    if ($action === 'refresh_routes') {
+        // Look every landmark up again on Geoapify and redraw every bus route line.
+        foreach (get_routes($conn) as $route) {
+            reset_route_geocoding($conn, (int) $route['route_id']);
+            route_path_for($conn, (int) $route['route_id']);
+        }
+        flash('success', geoapify_demo_mode()
+            ? 'Demo mode: no Geoapify key, so routes are drawn as straight lines between landmarks.'
+            : 'Landmarks and bus routes updated from Geoapify.');
+        $back = 'admin_tracking.php#landmarks';
+    }
+
     go($back);
 }
 
 $fleet = get_fleet($conn);
+
+// GEOAPIFY: street name for each unit's last GPS point (cached in geo_cache).
+foreach ($fleet as $i => $unit) {
+    $fleet[$i]['address'] = '';
+    if ($unit['latitude'] !== null && !geoapify_demo_mode()) {
+        try {
+            $fleet[$i]['address'] = geoapify_address($conn, $unit['latitude'], $unit['longitude']);
+        } catch (Exception $ex) {
+            error_log('SmartRide Geoapify: ' . $ex->getMessage()); // the page still works without it
+        }
+    }
+}
+
 $on_road = 0;
 $riding = 0;
 foreach ($fleet as $unit) {
@@ -86,6 +150,10 @@ foreach ($fleet as $unit) {
     }
 }
 $routes = get_routes($conn);
+$route_stops = [];
+foreach ($routes as $route) {
+    $route_stops[$route['route_id']] = get_route_stops($conn, (int) $route['route_id']);
+}
 $today = get_fare_totals_since($conn, date('Y-m-d 00:00:00'));
 
 $title = 'Jeepney tracking';

@@ -15,10 +15,10 @@
     <div class="wrap">
         <div class="eyebrow">Load your wallet</div>
         <h2>Where to reload</h2>
-        <p class="lead">Top up in SmartRide with QR Ph through PayMongo, or pay cash at a partner store or kiosk. Either way the load goes straight to your wallet.</p>
+        <p class="lead">Top up in SmartRide through Maya Checkout, or pay cash at a partner store or kiosk. Either way the load goes straight to your wallet.</p>
         <div class="grid-4">
-            <div class="tile"><div class="ph" style="background-image:url('../assets/img/gcash.png')"></div><div class="t">GCash<small>Scan the QR Ph code SmartRide shows you</small></div></div>
-            <div class="tile"><div class="ph" style="background-image:url('../assets/img/paymaya.jfif')"></div><div class="t">Maya or any bank app<small>Any app that reads QR Ph</small></div></div>
+            <div class="tile"><div class="ph" style="background-image:url('../assets/img/paymaya.jfif')"></div><div class="t">Maya wallet<small>Pay from your Maya account</small></div></div>
+            <div class="tile"><div class="ph" style="background:linear-gradient(135deg,#2A20D8,#17154F);display:grid;place-items:center;color:#fff"><?= icon('wallet') ?></div><div class="t">Cards<small>Visa or Mastercard on Maya's page</small></div></div>
             <div class="tile"><div class="ph" style="background-image:url('../assets/img/merchant.jfif')"></div><div class="t">Partner stores<small>Give your username, pay cash</small></div></div>
             <div class="tile"><div class="ph" style="background-image:url('../assets/img/kiosk.jpg')"></div><div class="t">SmartRide kiosk<small>At major terminals</small></div></div>
         </div>

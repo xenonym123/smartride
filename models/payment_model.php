@@ -1,18 +1,28 @@
 <?php
-// payments table: QR Ph reloads through PayMongo (or the demo stand-in).
+// payments table: wallet reloads through Maya Checkout (or the demo stand-in).
 
 require_once __DIR__ . '/wallet_model.php';
 require_once __DIR__ . '/notification_model.php';
 require_once __DIR__ . '/log_model.php';
+require_once __DIR__ . '/../includes/maya.php';
 
-// QR Ph codes expire after 30 minutes on PayMongo's side.
-function create_payment($conn, $wallet_id, $amount, $provider, $intent_id, $qr_image, $test_url)
+// A Maya checkout page stays open for 1 hour.
+// $reference is our own random number (SR-...) that Maya keeps with the payment.
+function create_payment($conn, $wallet_id, $amount, $provider, $reference)
 {
-    $stmt = $conn->prepare("INSERT INTO payments (wallet_id, amount, provider, intent_id, qr_image, test_url, status, created_at, expires_at)
-                            VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW() + INTERVAL 30 MINUTE)");
-    $stmt->bind_param("idssss", $wallet_id, $amount, $provider, $intent_id, $qr_image, $test_url);
+    $stmt = $conn->prepare("INSERT INTO payments (wallet_id, amount, provider, reference_no, status, created_at, expires_at)
+                            VALUES (?, ?, ?, ?, 'pending', NOW(), NOW() + INTERVAL 1 HOUR)");
+    $stmt->bind_param("idss", $wallet_id, $amount, $provider, $reference);
     $stmt->execute();
     return $conn->insert_id;
+}
+
+// Saves Maya's checkout id and payment page once the checkout is made.
+function set_payment_checkout($conn, $payment_id, $checkout_id, $checkout_url)
+{
+    $stmt = $conn->prepare("UPDATE payments SET checkout_id = ?, checkout_url = ? WHERE payment_id = ?");
+    $stmt->bind_param("ssi", $checkout_id, $checkout_url, $payment_id);
+    $stmt->execute();
 }
 
 // One payment, only if it belongs to this wallet (so nobody can open someone else's).
@@ -24,13 +34,32 @@ function get_payment($conn, $payment_id, $wallet_id)
     return $stmt->get_result()->fetch_assoc();
 }
 
-// Used by the webhook, which only knows PayMongo's payment intent id.
-function get_payment_by_intent($conn, $intent_id)
+// Used by the webhook, which only knows the reference number.
+function get_payment_by_reference($conn, $reference)
 {
-    $stmt = $conn->prepare("SELECT * FROM payments WHERE intent_id = ?");
-    $stmt->bind_param("s", $intent_id);
+    $stmt = $conn->prepare("SELECT * FROM payments WHERE reference_no = ?");
+    $stmt->bind_param("s", $reference);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
+}
+
+// Asks Maya about a pending payment and records the answer. Returns the new status.
+// Used by the pay page, the status check and the webhook, so they all agree.
+function sync_payment_with_maya($conn, $payment)
+{
+    if ($payment['status'] !== 'pending' || $payment['provider'] !== 'maya') {
+        return $payment['status'];
+    }
+    $result = maya_check_payment($payment['reference_no'], (float) $payment['amount']);
+    if ($result === 'paid') {
+        complete_payment($conn, $payment);
+        return 'paid';
+    }
+    if ($result === 'expired' || $result === 'cancelled') {
+        set_payment_status($conn, $payment['payment_id'], $result);
+        return $result;
+    }
+    return 'pending';
 }
 
 // pending -> failed / expired / cancelled. A paid payment never changes again.
@@ -41,7 +70,7 @@ function set_payment_status($conn, $payment_id, $status)
     $stmt->execute();
 }
 
-// Marks a pending QR as expired once its 30 minutes are up. Returns true if it just expired.
+// Marks a pending payment as expired once its hour is up. Returns true if it just expired.
 function expire_payment_if_old($conn, $payment_id)
 {
     $stmt = $conn->prepare("UPDATE payments SET status = 'expired' WHERE payment_id = ? AND status = 'pending' AND expires_at < NOW()");
@@ -68,7 +97,7 @@ function complete_payment($conn, $payment)
             $conn->rollback();
             return false; // already paid (or cancelled / expired)
         }
-        add_reload($conn, $wallet_id, $amount, 'qrph');
+        add_reload($conn, $wallet_id, $amount, 'maya');
         credit_wallet($conn, $wallet_id, $amount);
         $conn->commit();
     } catch (Exception $ex) {
@@ -78,7 +107,7 @@ function complete_payment($conn, $payment)
 
     $wallet = get_wallet($conn, $wallet_id);
     $how = $payment['provider'] === 'demo' ? ' (demo)' : '';
-    add_log($conn, (int) $wallet['user_id'], 'reload', 'Reloaded ' . peso($amount) . ' via QR Ph / PayMongo' . $how);
+    add_log($conn, (int) $wallet['user_id'], 'reload', 'Reloaded ' . peso($amount) . ' via Maya Checkout' . $how);
     add_notification($conn, (int) $wallet['user_id'], 'reload', 'Reload successful',
         peso($amount) . ' added. Your balance is now ' . peso($wallet['balance']) . '.', 'passenger_reload.php');
     return true;

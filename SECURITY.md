@@ -2,7 +2,7 @@
 
 One section per member. Line numbers match the files in this zip. If you edit a file, they'll move a little.
 
-The three APIs (Geolocation, PayMongo, Notifications) have their own map in `APIS.md`. Their security points are listed there too: the webhook signature, the secret key staying on the server, and each wallet getting credited only once.
+The five APIs (Geoapify, Maya, PhilSMS, Gmail, OneSignal) have their own map in `APIS.md`. Their security points are listed there too: API keys kept in `config/keys.php` (never on GitHub), never trusting a payment redirect or webhook until Maya confirms it, each wallet credited only once, and reset links stored only as hashes.
 
 ---
 
@@ -61,17 +61,17 @@ Type `' OR '1'='1' -- ` as the username and anything as the password. You get "W
 
 | What | File | Line |
 | --- | --- | --- |
-| Cookie settings: HttpOnly, SameSite, strict mode | `includes/auth.php` | 7–10 |
-| New session id on login | `includes/auth.php` | 17 |
-| Logout: `session_unset()`, `session_destroy()`, new id | `includes/auth.php` | 31–36 |
+| Cookie settings: HttpOnly, SameSite, strict mode | `includes/auth.php` | 8–11 |
+| New session id on login | `includes/auth.php` | 18 |
+| Logout: `session_unset()`, `session_destroy()`, new id | `includes/auth.php` | 32–37 |
 | Logout only from our own button (POST + token) | `controllers/logout.php` | 14 |
-| `require_role()`: not signed in → login, wrong role → your own dashboard | `includes/auth.php` | 50–63 |
-| Dashboards aren't cached, so Back after logout shows nothing | `includes/auth.php` | 53 |
+| `require_role()`: not signed in → login, wrong role → your own dashboard | `includes/auth.php` | 51–64 |
+| Dashboards aren't cached, so Back after logout shows nothing | `includes/auth.php` | 54 |
 | Every page starts with `session_start()` and `require_role()` | e.g. `controllers/passenger_reload.php` | 14–15 |
 | Deactivated accounts can't sign in | `controllers/login.php` | 40 |
 | Sign-up can only make passengers | `controllers/register.php` | 32 |
 | Admin can't deactivate or demote themselves | `controllers/admin_users.php` 20, `controllers/admin_user_form.php` 33 |
-| CSRF token on every form and every fetch() | `includes/auth.php` 79–106, `views/partials/head.php` 3, `assets/js/app.js` 37 |
+| CSRF token on every form and every fetch() | `includes/auth.php` 80–107, `views/partials/head.php` 3, `assets/js/app.js` 37 |
 
 **What to say**
 
@@ -98,7 +98,7 @@ The CSRF token is a random secret stored in the session and copied into every fo
 | `e()` = `htmlspecialchars()`, used on everything we print | `includes/functions.php` | 32–34 |
 | Example: user names in the admin table | `views/admin/users.php` | 27 |
 | Data inside a `<script>` tag is escaped too | `views/driver/count.php` | 59 |
-| JavaScript lists escape names before adding them | `views/passenger/track.php` | 22 |
+| JavaScript lists escape names before adding them | `views/passenger/track.php` | 27 |
 | Server-side checks: name, email, PH mobile number, username, password | `includes/functions.php` | 216–241 |
 | Reload amount and method checked on the server | `controllers/passenger_reload.php` | 30–37 |
 | Filters only accept known values | `controllers/admin_users.php` | 36 |
