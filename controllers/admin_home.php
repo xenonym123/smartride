@@ -28,10 +28,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ? 'Test sent through OneSignal. It should pop up in a few seconds (if you allowed alerts in this browser).'
             : 'Saved a test alert. Add your OneSignal keys in config/keys.php to get it as a real push.');
     } elseif ($test === 'test_sms') {
-        queue_message('sms', $me['phone'], 'Test message', 'If you got this, PhilSMS is working.');
-        flash(philsms_number($me['phone']) ? 'success' : 'error', !philsms_ready()
-            ? 'Demo mode: add your PhilSMS token in config/keys.php to send real texts.'
-            : (philsms_number($me['phone']) ? 'Test text sent to ' . $me['phone'] . ' through PhilSMS.' : 'Your account phone (' . $me['phone'] . ') is not a PH mobile number.'));
+        // Sent right away (not through the outbox) so PhilSMS's answer can be shown here.
+        $sent = philsms_send($me['phone'], 'SmartRide: Test message. If you got this, PhilSMS is working.');
+        if ($sent['ok']) {
+            $left = philsms_balance();
+            flash('success', 'Test text sent to ' . $me['phone'] . ' through PhilSMS.' . ($left !== null ? ' Credits left: ' . $left . '.' : ''));
+        } else {
+            flash('error', 'PhilSMS: ' . $sent['message']);
+        }
     } elseif ($test === 'test_email') {
         queue_message('email', $me['email'], 'SmartRide test email',
             email_html('Test email', ['If you can read this, the Gmail API is working.']));

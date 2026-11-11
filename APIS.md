@@ -46,8 +46,12 @@ Every route now has **landmarks from A to B**. For example, Libertad – SM Baco
 
 | What | File | Line |
 | --- | --- | --- |
-| Bearer token, `639…` number, sender id, `plain` | `includes/philsms.php` | 31, 39 |
-| `0917…` → `63917…` | `includes/philsms.php` | 18 |
+| Bearer token on every request | `includes/philsms.php` | 50 |
+| `639…` number, `plain`, sender ID (left out if empty, so PhilSMS uses the account's default) | `includes/philsms.php` | 76–82 |
+| `0917…` → `63917…` | `includes/philsms.php` | 36 |
+| PhilSMS can say "error" inside an HTTP 200, so the answer's `status` is checked too | `includes/philsms.php` | 57 |
+| Credits left (`/balance`) | `includes/philsms.php` | 92 |
+| Admin **Test** sends right away and shows PhilSMS's answer on screen | `controllers/admin_home.php` | 30 |
 | Only fare paid + arriving, and only if "Text me" is on | `models/notification_model.php` | 33 |
 | Passenger turns "Text me" on (Profile → Alerts) | `controllers/passenger_alerts.php` | 28 |
 | Passenger picks their drop-off landmark (Home) | `controllers/passenger_home.php` | 23 |
@@ -61,6 +65,10 @@ Every route now has **landmarks from A to B**. For example, Libertad – SM Baco
 1. The passenger pays (QR scan).
 2. Home shows "You're riding BCN 105 · Libertad – SM Bacolod. Where are you getting off?" They pick **SM City Bacolod**.
 3. The driver's phone sends its GPS every 20 seconds. When the jeepney is within **300 m** (`ARRIVAL_RADIUS_M`, `config.php` line 51), the passenger gets: *"SmartRide: Arriving at SM City Bacolod. BCN 105 is about 250 m away. Get ready to get off."*
+
+**Sender ID.** PhilSMS only sends from a sender name approved for your account (dashboard.philsms.com → Sending → **Sender ID** → Request for new one). Until one is approved, set `PHILSMS_SENDER_ID` to `''` and PhilSMS uses the account's default, if it has one. If the Test button says *Sender ID "…" is not authorized*, that's this.
+
+**Token.** Make the token on **dashboard.philsms.com**. A token from app.philsms.com is *Unauthenticated.* here (set `PHILSMS_API` in `keys.php` if your account is on app.philsms.com).
 
 Texts are **off until the passenger turns them on**. Every text uses PhilSMS credits, and the demo accounts have made-up numbers that might belong to real people.
 

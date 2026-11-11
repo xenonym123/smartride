@@ -21,7 +21,7 @@ define('ONESIGNAL_REST_API_KEY', '');
 //    If your account is on app.philsms.com instead, also add:
 //    define('PHILSMS_API', 'https://app.philsms.com/api/v3');
 define('PHILSMS_API_TOKEN', '');
-define('PHILSMS_SENDER_ID', 'PhilSMS');   // your approved sender name (max 11 characters)
+define('PHILSMS_SENDER_ID', '');   // approved sender name (Sending > Sender ID), or '' for your account's default
 
 // 5. Gmail API (OAuth). Steps in APIS.md: Google Cloud project > enable Gmail API >
 //    OAuth client > refresh token from the OAuth Playground (scope gmail.send).
