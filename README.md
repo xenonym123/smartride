@@ -1,12 +1,14 @@
 # SmartRide: Integrated Public Transport and Cashless Payment System
 
-This used to be 1TAP. Same e-jeepney system for Bacolod: QR fares, a live passenger count, GPS tracking. Now it has three outside APIs built in:
+This used to be 1TAP. It's the same e-jeepney system for Bacolod: QR fares, a live passenger count, GPS tracking. Now it connects to five outside APIs, each with its own key:
 
-1. **Geolocation API.** The browser's GPS. Passengers find the nearest jeepney with a free seat. Drivers' phones send the jeepney's position.
-2. **PayMongo QR Ph.** A real payment gateway for wallet reloads. Pay with GCash, Maya or any bank app.
-3. **Notification API.** Pop-up alerts on the phone or computer when a fare is paid, your balance runs low, a reload lands, or the jeepney fills up.
+1. **Geoapify:** landmarks from A to B on every route, bus road lines, street names, the walking route to the nearest jeepney, and location by IP.
+2. **Maya Checkout (sandbox):** wallet reloads with a card or Maya wallet. Test only, no real money.
+3. **PhilSMS:** a text when your fare is paid, and when your jeepney is close to the landmark where you get off.
+4. **Gmail API:** forgot-password emails and payment receipts.
+5. **OneSignal:** push pop-ups on the phone or computer.
 
-`APIS.md` explains each one, with file and line numbers, for the presentation.
+`APIS.md` explains each one, with file and line numbers, setup steps and a demo script, for the presentation.
 
 The code style is the same as before: plain PHP functions, MySQLi with `bind_param`, one file per page.
 
@@ -31,63 +33,72 @@ Re-import the SQL file the day before you present. The demo trips and fares are 
 
 The other demo passengers also use `smartride2026`. The old accounts (`user`, `driver`, `driver2`, `admin`) keep their old passwords.
 
-## Turning on PayMongo
+## API keys
 
-It works without PayMongo. With no key in `config/config.php`, SmartRide runs in **demo mode**: QR Ph shows a sample QR and a **Simulate payment (demo only)** button. There's a yellow "Demo mode" tag on the page so nobody mistakes it for a real payment.
+All keys go in **`config/keys.php`**. That file is in `.gitignore`, so git never uploads it to GitHub.
 
-To use the real gateway in test mode:
+- A fresh copy from GitHub doesn't have `keys.php` yet. Copy `config/keys.example.php` to `config/keys.php` and fill it in.
+- Any key left empty runs that feature in **demo mode**, labelled "Demo mode" on screen, so the site never breaks.
+- The admin's **Analytics** page shows which keys are set under **Connected APIs**, with **Test** buttons.
 
-1. Make an account at <https://dashboard.paymongo.com>. Go to **Developers → API Keys** and copy the **secret key** (`sk_test_...`).
-2. Paste it into `config/config.php`:
-   ```php
-   define('PAYMONGO_SECRET_KEY', 'sk_test_xxxxxxxx');
-   ```
-3. Reload with **QR Ph**. You get a real QR Ph code from PayMongo.
+| Key | Where to get it |
+| --- | --- |
+| `GEOAPIFY_API_KEY` | myprojects.geoapify.com (free, no card) |
+| `MAYA_PUBLIC_KEY`, `MAYA_SECRET_KEY` | Already filled in with Maya's **public sandbox** keys. Your own: Maya Business Manager sandbox. |
+| `PHILSMS_API_TOKEN`, `PHILSMS_SENDER_ID` | app.philsms.com → Developers. Each text uses credits. |
+| `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_SENDER` | Google Cloud. Step by step in `APIS.md`. |
+| `ONESIGNAL_APP_ID`, `ONESIGNAL_REST_API_KEY` | onesignal.com → Web app → Custom Code |
 
-Read this before you scan anything:
+**Never upload `keys.php`.** If you upload through GitHub's website instead of git, `.gitignore` doesn't apply, so delete `config/keys.php` from the folder first.
 
-- **Don't pay a test QR with your real GCash.** PayMongo says QR Ph codes are real even in test mode, and paying one moves real money. If PayMongo includes a test link, the pay page shows **Open PayMongo's test page to simulate paying**. Use that instead.
-- PayMongo may need to turn on QR Ph for your account first. If you get "PayMongo said no", email their support.
-- **"Could not reach PayMongo... SSL certificate problem"** on XAMPP for Windows: set `CURL_CA_FILE` in `config.php` to `C:\xampp\apache\bin\curl-ca-bundle.crt`.
-- Never upload `config.php` with your key to GitHub, and don't put it on a slide.
+**"Could not reach ... SSL certificate problem"** on XAMPP for Windows: set `CURL_CA_FILE` in `config/config.php` to `C:\xampp\apache\bin\curl-ca-bundle.crt`.
 
-**Webhook (optional).** The pay page checks with PayMongo every 3 seconds on its own, so you don't need a webhook on localhost. If you want one anyway: PayMongo has to reach your PC, so run a tunnel like `ngrok http 80`. Then add a webhook in the PayMongo dashboard pointing to `https://<your-ngrok-url>/smartride/controllers/paymongo_webhook.php` with the events `payment.paid`, `payment.failed` and `qrph.expired`. Put its secret (`whsk_...`) in `PAYMONGO_WEBHOOK_SECRET`.
 
-## Geolocation and notifications need localhost
+## Use localhost for the phone features
 
-Browsers only give location and notifications to pages on `localhost` or `https`. That's the same rule as the camera scanner. So on the laptop, use `http://localhost/smartride/...`.
+Browsers only allow location, notifications and the camera on `localhost` or `https`. So on the laptop, use `http://localhost/smartride/...`.
 
-On a phone over Wi-Fi (`http://192.168...`), location and system pop-ups are blocked. The page still works, and alerts show as a card in the corner instead.
+On a phone over Wi-Fi (`http://192.168...`), GPS and push are blocked by the browser. The page still works: it falls back to Geoapify's IP location, and alerts show on the page instead.
 
 ## Demo script
 
-You need two windows, or a laptop plus a phone.
+The full version is in `APIS.md`. The short one:
 
-1. **Passenger** (`juandc`): press **Turn on alerts** on Home and allow it.
-2. **Track a Jeepney → Use my location.** Allow location. A blue dot appears, and the top card shows the nearest jeepney with a seat, how far it is, and about how many minutes away.
-3. **Reload Wallet → QR Ph → ₱100.** The PayMongo QR page opens. In demo mode, press **Simulate payment**. The page flips to "Paid" by itself and a "Reload successful" alert pops up.
-4. **Driver** (`ramon`, trip already running): open **QR Scanner** and scan the passenger's **My QR**. Within 10 seconds the passenger gets "Fare paid · ₱13.00".
-5. On **Passenger Count**, press **Someone got on** until 25/25. The driver gets "BCN 105 is full". The next passenger who scans gets told the unit is full, and no fare is taken.
-6. The **GPS on · sent 10:42 PM** tag at the top of the driver's pages shows the phone's location going out.
+1. **Admin** → Analytics → Connected APIs → **Test** the SMS and the email.
+2. **Passenger** `juandc` → Profile → Alerts → turn on *Text me* and *Email me*. Use your own phone and email on that account.
+3. **Track a Jeepney:** see each route's landmarks A → B and the bus road lines. **Use my location** shows the nearest jeepney.
+4. **Reload → Maya Checkout.** Pay with the sandbox Visa `4123 4501 3100 1381` (12/2030, CVV 123, password `mctest1`).
+5. **Driver** `ramon` scans the passenger's QR → "Fare paid" text and email.
+6. Passenger Home → **Where are you getting off?** → pick a landmark. Driver Home → **GPS simulator** → *Drive here* until the "Arriving at …" text comes.
+7. **Forgot your password?** on the login page → the email arrives through the Gmail API.
+
 
 ## Folders
 
 ```
 smartride/
   index.php            sends you to controllers/home.php
-  config/              config.php (settings + PayMongo keys), db_connect.php
+  config/              config.php (settings), keys.php (your API keys, not on GitHub),
+                       keys.example.php (empty copy for GitHub), db_connect.php
   includes/
     functions.php      e(), peso(), flash(), validate_user(), error page
     auth.php           sessions, login/logout, require_role(), CSRF
-    paymongo.php       talks to the PayMongo API with cURL
+    http.php           api_request(): one cURL function for every API
+    geoapify.php       Geoapify: landmarks, bus route lines, street names, walking routes, IP location
+    maya.php           Maya Checkout: wallet reloads
+    philsms.php        PhilSMS: text messages
+    gmail.php          Gmail API: emails
+    onesignal.php      OneSignal: push notifications
+    outbox.php         sends texts, emails and pushes after the page has answered
     icons.php
   models/              all the SQL, as plain functions
-    user  wallet  fare  trip  fleet  report  log  payment  notification
+    user  wallet  fare  trip  fleet  report  log  payment  notification  geo  route  reset
   controllers/         one file per page (the URLs you open)
     api_*.php          JSON for the JavaScript on the pages
-    paymongo_webhook.php   PayMongo calls this when a payment is paid
+    maya_webhook.php   Maya calls this when a payment changes
   views/               the HTML
-  assets/              css, js (app.js has the Geolocation + Notification code), images, libraries
+  assets/              css, js, images, libraries
+  OneSignalSDKWorker.js   the service worker OneSignal needs for push
   database/            smartride_db.sql
 ```
 
@@ -97,27 +108,31 @@ smartride/
 
 | File | What it does |
 | --- | --- |
-| `controllers/passenger_pay.php` | shows the PayMongo QR Ph code and waits for payment |
-| `controllers/api_payment_status.php` | asks PayMongo whether the reload is paid |
-| `controllers/paymongo_webhook.php` | PayMongo tells us a payment is paid, failed or expired |
-| `controllers/notifications.php` | list of your alerts, for every role |
-| `controllers/api_notifications.php` | new alerts for the pop-ups, every 10 seconds |
-| `includes/paymongo.php` | the PayMongo API calls |
-| `models/payment_model.php` | `payments` table |
-| `models/notification_model.php` | `notifications` table |
+| `controllers/api_routes.php` | Geoapify: every route's landmarks A → B and bus road line |
+| `controllers/api_geo.php` | Geoapify: street name, walking route, IP location |
+| `controllers/passenger_pay.php` | the result of a Maya Checkout; checks with Maya before crediting |
+| `controllers/api_payment_status.php` | asks Maya whether a reload is paid |
+| `controllers/maya_webhook.php` | Maya says a payment changed; we check with Maya ourselves |
+| `controllers/passenger_alerts.php` | saves the "Text me" / "Email me" switches |
+| `controllers/forgot_password.php`, `reset_password.php` | forgot password by email (Gmail API) |
+| `controllers/notifications.php`, `api_notifications.php` | your alerts list, and the bell in the sidebar |
+| `models/route_model.php` | landmarks, saved route lines, the passenger's drop-off |
+| `models/reset_model.php` | one-time reset links, stored as hashes |
+| `models/payment_model.php` | Maya reloads, credited once |
 
-The database has two new tables, `payments` and `notifications`. `reloads.method` also accepts `qrph` now.
+The database has these tables for the new features: `route_stops`, `route_paths`, `password_resets`, `payments`, `notifications` and `geo_cache`. `users` has `sms_alerts` and `email_alerts`, and `fare_transactions` has `dest_stop_id` and `arrival_sent_at`.
+
 
 ## Settings (`config/config.php`)
 
 - `APP_DEBUG`: keep it `false` when presenting.
-- `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET`, `CURL_CA_FILE`: see above.
+- `CURL_CA_FILE`: see above. `ARRIVAL_RADIUS_M`: how close (300 m) before the "arriving" text.
 - `QR_WINDOW`: seconds before a ride QR changes (30).
-- `RELOAD_MIN` / `RELOAD_MAX`: ₱20 to ₱5,000. PayMongo won't take less than ₱20 anyway.
+- `RELOAD_MIN` / `RELOAD_MAX`: ₱20 to ₱5,000.
 
 ## Notes
 
 - Cash reloads (partner store, kiosk) are approved right away in the demo.
 - The onboard camera count is still simulated with the **Someone got on / got off** buttons.
-- The maps need internet (OpenStreetMap). So does real PayMongo. Everything else, demo mode included, works offline.
+- The maps and the five APIs need internet. Demo mode works offline.
 - Needs PHP 8.0+ with `mysqli` and `curl`. XAMPP has both on by default.

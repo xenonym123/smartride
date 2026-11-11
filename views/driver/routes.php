@@ -17,7 +17,7 @@
     <div class="card">
         <h3>Fares by route</h3>
         <?php foreach ($routes as $r): ?>
-            <div class="list-row"><div class="who"><b><?= e($r['route_name']) ?></b><span><?= e($r['origin']) ?> to <?= e($r['destination']) ?></span></div><span class="num"><b><?= peso($r['base_fare']) ?></b></span></div>
+            <div class="list-row"><div class="who"><b><?= e($r['route_name']) ?></b><span><?php foreach ($route_stops[$r['route_id']] as $i => $stop): ?><?= $i > 0 ? ' → ' : '' ?><?= e($stop['name']) ?><?php endforeach; ?></span></div><span class="num"><b><?= peso($r['base_fare']) ?></b></span></div>
         <?php endforeach; ?>
         <p class="hint" style="margin-top:12px">Fares are set by the admin. The scanner charges the fare of the route you started the trip on.</p>
     </div>

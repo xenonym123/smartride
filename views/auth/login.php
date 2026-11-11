@@ -25,7 +25,7 @@
     <?php else: ?>
         <p class="center muted small">Driver accounts are made by a SmartRide admin.</p>
     <?php endif; ?>
-    <p class="center muted small">Forgot your password? Ask a SmartRide admin to reset it.</p>
+    <p class="center muted small"><a class="linkbtn" href="forgot_password.php">Forgot your password?</a></p>
     <div class="staff-note">Operator or admin? Sign in with your assigned account. SmartRide opens your dashboard either way.</div>
     <?php if (APP_DEBUG): ?>
         <div class="demo">Demo accounts (password <code>smartride2026</code>): passenger <code>juandc</code>, driver <code>ramon</code>. The admin uses your existing <code>admin</code> account.</div>

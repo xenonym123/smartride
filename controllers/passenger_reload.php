@@ -1,11 +1,11 @@
 <?php
 // Passenger: Reload Wallet.
-//   QR Ph  -> makes a PayMongo QR and opens passenger_pay.php to show it
+//   Maya   -> makes a Maya Checkout and sends the passenger to Maya's payment page
 //   Store / kiosk (cash) -> approved right away in the demo
 require_once '../config/db_connect.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
-require_once '../includes/paymongo.php';
+require_once '../includes/maya.php';
 require_once '../models/wallet_model.php';
 require_once '../models/payment_model.php';
 require_once '../models/notification_model.php';
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf($back);
 
     $amount = round((float) input('amount'), 2);
-    $method = input('method', 'qrph');
+    $method = input('method', 'maya');
 
     // Check the input on the server too. The min/max in the HTML can be removed by anyone.
     if (!isset($methods[$method])) {
@@ -40,22 +40,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         go($back);
     }
 
-    if ($method === 'qrph') {
-        // ---- PayMongo QR Ph ----
-        if (paymongo_demo_mode()) {
-            $payment_id = create_payment($conn, $wallet['wallet_id'], $amount, 'demo', null, null, null);
-        } else {
-            $me = get_user_by_id($conn, $user_id);
-            try {
-                $qr = paymongo_create_qr($amount, $me['full_name'], $me['email'], 'SmartRide wallet reload');
-            } catch (Exception $ex) {
-                error_log('SmartRide PayMongo: ' . $ex->getMessage());
-                flash('error', "We couldn't reach PayMongo just now. Try again in a minute, or reload with cash at a partner store.");
-                go($back);
-            }
-            $payment_id = create_payment($conn, $wallet['wallet_id'], $amount, 'paymongo', $qr['intent_id'], $qr['qr_image'], $qr['test_url']);
+    if ($method === 'maya') {
+        // ---- Maya Checkout ----
+        $reference = 'SR-' . bin2hex(random_bytes(8)); // our own reference number for Maya
+        if (maya_demo_mode()) {
+            $payment_id = create_payment($conn, $wallet['wallet_id'], $amount, 'demo', $reference);
+            go('passenger_pay.php?id=' . $payment_id);
         }
-        go('passenger_pay.php?id=' . $payment_id);
+        $payment_id = create_payment($conn, $wallet['wallet_id'], $amount, 'maya', $reference);
+        $me = get_user_by_id($conn, $user_id);
+        try {
+            $checkout = maya_create_checkout($reference, $amount, $me['full_name'], $me['email'], $payment_id);
+        } catch (Exception $ex) {
+            error_log('SmartRide Maya: ' . $ex->getMessage());
+            set_payment_status($conn, $payment_id, 'failed');
+            flash('error', "We couldn't reach Maya just now. Try again in a minute, or reload with cash at a partner store.");
+            go($back);
+        }
+        set_payment_checkout($conn, $payment_id, $checkout['checkout_id'], $checkout['url']);
+        // Off to Maya's payment page. Maya sends the passenger back to passenger_pay.php.
+        header('Location: ' . $checkout['url']);
+        exit;
     }
 
     // ---- Cash at a partner store or kiosk ----
@@ -77,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $history = get_reloads($conn, $wallet['wallet_id'], 50);
-$demo_mode = paymongo_demo_mode();
+$demo_mode = maya_demo_mode();
 
 $title = 'Reload wallet';
 $current_page = 'passenger_reload.php';

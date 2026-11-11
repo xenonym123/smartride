@@ -36,6 +36,16 @@
         <p class="hint">Member since <?= e(fmt_date($account['created_at'])) ?></p>
     </div>
 </div>
+<form class="card form-stack" method="post" action="passenger_alerts.php">
+    <?= csrf_field() ?>
+    <h3 style="margin:0">Alerts</h3>
+    <label class="check"><input type="checkbox" name="sms_alerts" value="1" <?= $account['sms_alerts'] ? 'checked' : '' ?>>
+        <span><b>Text me</b> when my fare is paid and when my jeepney is near my stop (PhilSMS, to <?= e($account['phone']) ?>)</span></label>
+    <label class="check"><input type="checkbox" name="email_alerts" value="1" <?= $account['email_alerts'] ? 'checked' : '' ?>>
+        <span><b>Email me</b> a receipt for every fare and reload (Gmail, to <?= e($account['email']) ?>)</span></label>
+    <p class="hint">Push pop-ups are set on the Notifications page. Texts use SMS credits, so they're off until you turn them on.</p>
+    <div><button class="btn ghost" type="submit">Save alerts</button></div>
+</form>
 <script src="../assets/vendor/qrcode.js"></script>
 <script>document.addEventListener('DOMContentLoaded', () => SMARTRIDE.liveQR({ url: 'api_qr_token.php', target: '#profileQR' }));</script>
 <?php include '../views/partials/dashboard_bottom.php'; ?>

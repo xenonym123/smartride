@@ -2,6 +2,7 @@
 // Sessions, sign in / sign out, page access by role, and CSRF tokens.
 
 require_once __DIR__ . '/../models/log_model.php';
+require_once __DIR__ . '/onesignal.php'; // the dashboard footer links each signed-in user to OneSignal
 
 // Session cookie settings. These must run before session_start().
 ini_set('session.cookie_httponly', '1');   // JavaScript can't read the cookie

@@ -6,13 +6,34 @@ require_once '../includes/auth.php';
 require_once '../models/wallet_model.php';
 require_once '../models/fare_model.php';
 require_once '../models/fleet_model.php';
+require_once '../models/route_model.php';
+require_once '../models/user_model.php';
 
 session_start();
 require_role('passenger');
 
 $user_id = (int) $_SESSION['user_id'];
 $wallet = get_my_wallet($conn, $user_id);
+
+// "Where are you getting off?" When the jeepney gets near that landmark, the driver's GPS
+// ping triggers an "arriving" text (PhilSMS) and push. See api_gps.php.
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_csrf('passenger_home.php');
+    $ride = get_current_ride($conn, $wallet['wallet_id']);
+    if ($ride && set_ride_destination($conn, $ride['txn_id'], $wallet['wallet_id'], (int) input('stop_id'))) {
+        flash('success', "Got it. We'll let you know when you're close.");
+    } else {
+        flash('error', 'Pick a landmark on the route you are riding.');
+    }
+    go('passenger_home.php');
+}
+
 $month = get_month_summary($conn, $wallet['wallet_id']);
+
+// The ride the passenger is on right now (paid on a trip that hasn't ended), and its landmarks.
+$current_ride = get_current_ride($conn, $wallet['wallet_id']);
+$ride_stops = $current_ride ? get_route_stops($conn, (int) $current_ride['route_id']) : [];
+$me = get_user_by_id($conn, $user_id);
 
 // Next jeepney = the unit on a trip with the most seats left.
 $next = null;

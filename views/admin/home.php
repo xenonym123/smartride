@@ -43,6 +43,22 @@
 </div>
 
 <div class="card">
+    <div class="head"><h3>Connected APIs</h3></div>
+    <?php foreach ($apis as $api): ?>
+        <div class="list-row">
+            <span class="dot <?= $api[2] === 'on' ? 'green' : 'gray' ?>"></span>
+            <div class="who" style="flex:1"><b><?= e($api[0]) ?></b><span><?= e($api[1]) ?></span></div>
+            <span class="pill <?= $api[2] === 'on' ? 'pill-green' : 'pill-amber' ?>"><?= e($api[3]) ?></span>
+            <?php if ($api[4] !== ''): ?>
+                <form method="post" action="admin_home.php"><?= csrf_field() ?><input type="hidden" name="action" value="<?= e($api[4]) ?>">
+                    <button class="btn sm ghost" type="submit">Test</button></form>
+            <?php endif; ?>
+        </div>
+    <?php endforeach; ?>
+    <p class="hint" style="margin-top:12px">Keys go in <code>config/keys.php</code> (never uploaded to GitHub). Without a key, that feature runs in demo mode. Test buttons send to your own account.</p>
+</div>
+
+<div class="card">
     <div class="head"><h3>Recent activity</h3><a class="btn sm ghost" href="admin_logs.php">All logs</a></div>
     <?php $logs = $activity; include '../views/partials/log_list.php'; ?>
 </div>

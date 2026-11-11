@@ -6,6 +6,7 @@ require_once '../includes/auth.php';
 require_once '../models/trip_model.php';
 require_once '../models/fare_model.php';
 require_once '../models/fleet_model.php';
+require_once '../models/route_model.php';
 
 session_start();
 require_role('driver');
@@ -48,6 +49,7 @@ $totals = get_driver_totals($conn, $driver_id, date('Y-m-d 00:00:00'));
 $trips = get_todays_trips($conn, $driver_id);
 $units = get_available_units($conn);
 $routes = get_routes($conn);
+$trip_stops = $trip ? get_route_stops($conn, (int) $trip['route_id']) : []; // for the GPS simulator
 
 $title = 'Driver dashboard';
 $current_page = 'driver_home.php';

@@ -1,7 +1,12 @@
 <?php
-// notifications table. SmartRide saves an alert here (fare paid, low balance, unit full...).
-// The page asks api_notifications.php for new ones every few seconds, and the
-// browser's Notification API pops them up on the phone or computer.
+// notifications table. SmartRide saves an alert here (fare paid, low balance, unit full...)
+// and sends it out through three APIs (after the page answers, see includes/outbox.php):
+//   OneSignal  push to the phone or computer   (everyone who allowed alerts)
+//   PhilSMS    text message                     (fare paid, arriving; only if "Text me" is on)
+//   Gmail      email receipt                    (fare paid, reload; only if "Email me" is on)
+// The Notifications page and the bell in the sidebar read from this table too.
+
+require_once __DIR__ . '/../includes/outbox.php';
 
 function add_notification($conn, $user_id, $type, $title, $body = '', $link = '')
 {
@@ -11,6 +16,29 @@ function add_notification($conn, $user_id, $type, $title, $body = '', $link = ''
                             VALUES (?, ?, ?, ?, ?, 0, NOW())");
     $stmt->bind_param("issss", $user_id, $type, $title, $body, $link);
     $stmt->execute();
+
+    // ONESIGNAL push (does nothing without keys).
+    queue_message('push', $user_id, $title, $body, $link);
+
+    // Who is this, and did they ask for texts / emails?
+    $stmt = $conn->prepare("SELECT phone, email, sms_alerts, email_alerts FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+    if (!$user) {
+        return;
+    }
+
+    // PHILSMS text: only fare paid and arriving, and only if they turned it on (texts cost credits).
+    if ($user['sms_alerts'] && in_array($type, ['fare_paid', 'arriving'], true)) {
+        queue_message('sms', $user['phone'], $title, $body);
+    }
+
+    // GMAIL receipt: only payments, and only if they turned it on.
+    if ($user['email_alerts'] && in_array($type, ['fare_paid', 'reload'], true)) {
+        $html = email_html($title, [e($body)], 'Open SmartRide', app_url($link !== '' ? $link : 'passenger_home.php'));
+        queue_message('email', $user['email'], $title, $html);
+    }
 }
 
 // Send the same alert to every active account with a role (for example all admins).

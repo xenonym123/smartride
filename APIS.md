@@ -1,120 +1,137 @@
-# The three APIs in SmartRide
+# The five APIs in SmartRide
 
-Each section covers what the API is, where it lives in the code, how a request flows, and how to demo it. Line numbers match the files in this zip.
+| API | What SmartRide uses it for | Key(s) in `config/keys.php` | Where to get it |
+| --- | --- | --- | --- |
+| **Geoapify** | Route landmarks A→B, bus road lines, street names, walking route, location by IP | `GEOAPIFY_API_KEY` | myprojects.geoapify.com. Free, no card. |
+| **Maya Checkout** | Wallet reloads (sandbox, test only, no real money) | `MAYA_PUBLIC_KEY`, `MAYA_SECRET_KEY` | Maya's public sandbox keys are already filled in. Your own: Maya Business Manager sandbox. |
+| **PhilSMS** | Texts: "fare paid" and "arriving near your stop" | `PHILSMS_API_TOKEN`, `PHILSMS_SENDER_ID` | app.philsms.com → Developers |
+| **Gmail API** | Forgot-password emails and payment receipts | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_SENDER` | Google Cloud (steps below) |
+| **OneSignal** | Push pop-ups on phones and computers | `ONESIGNAL_APP_ID`, `ONESIGNAL_REST_API_KEY` | onesignal.com → Web app → Custom Code |
 
----
+**Where the keys live.** All keys go in `config/keys.php`. `config/config.php` reads that file at line 24. `.gitignore` keeps `keys.php` off GitHub, so a fresh copy from GitHub starts with `config/keys.example.php` instead: copy it to `keys.php` and fill it in.
 
-## 1. Geolocation API
+**When a key is missing.** That API runs in **demo mode**, with a "Demo mode" label on screen, so the site never breaks.
 
-**What it is.** It's built into every browser (`navigator.geolocation`). The page asks, the browser shows "Allow location?", and if you say yes it hands back your latitude and longitude from the phone's GPS or Wi-Fi. No key and no cost. It only works on `localhost` or `https`.
+**One function for every call.** All five APIs go through `api_request()` in `includes/http.php` (line 12).
 
-**Where it's used**
+**The admin card.** Admin → Analytics → **Connected APIs** shows which keys are set (never the keys themselves). It has **Test** buttons for push, SMS and email, and each test goes to the admin's own account.
 
-| What | File | Line |
-| --- | --- | --- |
-| Passenger: ask for the location once (`getCurrentPosition`) | `assets/js/app.js` | 123–125 |
-| Distance between two points (haversine formula) | `assets/js/app.js` | 112 |
-| "Use my location" button, blue dot, nearest jeepney with a seat | `views/passenger/track.php` | 50, 69 |
-| Driver: keep sending the position during a trip (`watchPosition`) | `assets/js/app.js` | 93, 100 |
-| Turned on only while a trip is running | `views/partials/dashboard_bottom.php` | 7 |
-| Server saves the position, rejects impossible coordinates | `controllers/api_gps.php` | 22 |
-| Maps read the newest position of every unit | `models/fleet_model.php` → `get_fleet()` |
-
-**How it flows**
-
-Driver's phone → `watchPosition` → every 20 s `POST api_gps.php {lat, lng}` → `gps_pings` table → `api_fleet.php` → both maps.
-
-Passenger → **Use my location** → `getCurrentPosition` → the distance to each jeepney is worked out in the browser → "BCN 105 · 0.9 km · about 4 min away · 7 seats left". The time assumes 15 km/h in city traffic.
-
-The passenger's location never leaves the phone. Only the driver's gets saved.
-
-**Demo**
-
-As `juandc`, open Track a Jeepney → Use my location → Allow. The driver's pages show **GPS on · sent 10:42 PM** at the top. Block location and you get a plain message telling you how to allow it.
+**Why texts and emails don't slow anything down.** Texts, emails and pushes go into an **outbox** (`includes/outbox.php`). They're sent *after* the page has answered the browser (line 28 sends `Content-Length`, then the queue goes out). So the driver's scanner shows "Paid" right away, even if PhilSMS takes a second or two.
 
 ---
 
-## 2. PayMongo QR Ph (payment gateway)
+## 1. Geoapify: route landmarks and bus routes
 
-**What it is.** PayMongo is a Philippine payment gateway. QR Ph is the national QR standard, so one code works in GCash, Maya, and most bank apps. SmartRide uses it for wallet reloads. We call PayMongo's REST API with cURL, and our secret key goes in the `Authorization: Basic` header.
+Every route now has **landmarks from A to B**. For example, Libertad – SM Bacolod is:
 
-**Where it's used**
+> **A** Libertad Public Market → Bacolod City Hall → Bacolod Public Plaza → San Sebastian Cathedral → **B** SM City Bacolod
 
 | What | File | Line |
 | --- | --- | --- |
-| Demo mode when there's no key | `includes/paymongo.php` | 15 |
-| One request to PayMongo (cURL, Basic auth with the secret key) | `includes/paymongo.php` | 22, 29 |
-| 1. Create a payment intent: amount in centavos, QR Ph only | `includes/paymongo.php` | 62 |
-| 2. Create a `qrph` payment method with the passenger's name and email | `includes/paymongo.php` | 71 |
-| 3. Attach them. PayMongo answers with the QR image | `includes/paymongo.php` | 76, 82 |
-| 4. Ask PayMongo for the status (`succeeded` = paid) | `includes/paymongo.php` | 95 |
-| 5. Check the webhook signature (HMAC-SHA256, max 5 min old) | `includes/paymongo.php` | 104, 120, 123 |
-| Reload form: QR Ph → PayMongo | `controllers/passenger_reload.php` | 43, 50 |
-| Friendly message if PayMongo is down | `controllers/passenger_reload.php` | 53 |
-| Pay page: shows the QR, checks every 3 s | `views/passenger/pay.php` | 75 |
-| Status check credits the wallet when it's paid | `controllers/api_payment_status.php` | 24 |
-| Webhook from PayMongo (`payment.paid`, `payment.failed`, `qrph.expired`) | `controllers/paymongo_webhook.php` | 24, 36 |
-| Credit the wallet once only, even if both arrive | `models/payment_model.php` | 56, 64 |
-| Simulate button works in demo mode only | `controllers/passenger_pay.php` | 31 |
+| Key goes on every request as `?apiKey=` | `includes/geoapify.php` | 21–23 |
+| **Forward geocoding:** landmark name → position, only within 15 km of Bacolod | `includes/geoapify.php` | 123, 127 |
+| **Routing, `mode=bus`:** A → every landmark → B, following roads | `includes/geoapify.php` | 140, 146 |
+| Route line saved in `route_paths`, so each route is fetched once | `includes/geoapify.php` | 164, 166 |
+| JSON for the maps: every route with landmarks and line | `controllers/api_routes.php` | 14 |
+| Lines and A/B markers drawn on the map | `assets/js/app.js` | 259 |
+| Passenger Track page: routes on the map, plus a list | `views/passenger/track.php` | 103 |
+| Admin: add a landmark (Geoapify finds it by name), remove one, "Update from Geoapify" | `controllers/admin_tracking.php` | 79, 91, 115 |
+| Reverse geocoding (street names), walking route, IP location | `includes/geoapify.php` | 28, 53, 82 |
 
-**How it flows**
-
-```
-Passenger: Reload ₱100 by QR Ph
-  → POST /v1/payment_intents         amount 10000, payment_method_allowed ["qrph"]
-  → POST /v1/payment_methods         type "qrph", billing name + email
-  → POST /v1/payment_intents/{id}/attach
-  ← next_action.code.image_url       (the QR, as a base64 image)
-Passenger scans it with GCash / Maya / bank app and pays
-  → PayMongo marks the intent "succeeded" and sends payment.paid to our webhook
-  → SmartRide: payments.status = 'paid', reloads row, wallet + ₱100, notification
-```
-
-**Safety points to mention**
-
-- The wallet is credited only after PayMongo confirms. Clicking "back" or faking a form does nothing.
-- The `UPDATE ... WHERE status = 'pending'` means a payment can turn into money only once. That holds even if the webhook and the status check land at the same time.
-- A webhook without PayMongo's correct signature gets `401` and is ignored. So does a signature older than 5 minutes, so an old request can't be replayed.
-- The secret key stays on the server in `config.php`. The browser never sees it.
-- Each passenger can only open their own payments. `get_payment()` checks the wallet.
-
-**Demo**
-
-With no key: Reload → QR Ph → ₱100 → **Simulate payment (demo only)**. The page flips to Paid and the balance goes up.
-
-With a test key: you get a real QR Ph code from PayMongo. Don't pay it with real money. Use PayMongo's test link if it shows one.
+**About the starting positions.** The demo landmarks start with approximate positions. The first time a map loads with your key, Geoapify looks every landmark up **by name** and saves the real position (`geocoded = 1`). Then it asks for the bus route between them. To redo it, click Admin → Jeepney Tracking → **Update from Geoapify**.
 
 ---
 
-## 3. Notification API
-
-**What it is.** Also built into the browser (`Notification`). After you allow it once, a page can show system pop-ups like an app does: corner of the screen on a laptop, notification shade on Android. SmartRide saves each alert in a `notifications` table. Every page asks the server for new ones every 10 seconds, and the browser shows each one as a pop-up. If notifications are blocked, it shows a small card on the page instead.
-
-**Where it's used**
+## 2. PhilSMS: "fare paid" and "arriving at your stop"
 
 | What | File | Line |
 | --- | --- | --- |
-| Save an alert | `models/notification_model.php` | 6 |
-| Only the alerts the browser hasn't seen | `models/notification_model.php` | 38 |
-| JSON endpoint the pages ask every 10 s | `controllers/api_notifications.php` | 24 |
-| Ask permission ("Turn on alerts" button) | `assets/js/app.js` | 148 |
-| Check for new alerts every 10 seconds | `assets/js/app.js` | 139 |
-| Show the system pop-up (`new Notification`) | `assets/js/app.js` | 170 |
-| Fallback card when pop-ups are blocked | `assets/js/app.js` | 178 |
-| Started on every dashboard page | `views/partials/dashboard_bottom.php` | 5 |
-| Fare paid / low balance / unit full / blocked fare / frozen QR scanned | `controllers/api_scan.php` | 83–115 |
-| Reload successful | `models/payment_model.php` → `complete_payment()`, `controllers/passenger_reload.php` |
-| New passenger signed up (to admins) | `controllers/register.php` |
-| Notifications page + unread badge in the sidebar | `controllers/notifications.php`, `views/partials/dashboard_top.php` |
+| Bearer token, `639…` number, sender id, `plain` | `includes/philsms.php` | 31, 39 |
+| `0917…` → `63917…` | `includes/philsms.php` | 18 |
+| Only fare paid + arriving, and only if "Text me" is on | `models/notification_model.php` | 33 |
+| Passenger turns "Text me" on (Profile → Alerts) | `controllers/passenger_alerts.php` | 28 |
+| Passenger picks their drop-off landmark (Home) | `controllers/passenger_home.php` | 23 |
+| Only a landmark on the route they're riding is accepted | `models/route_model.php` | 122 |
+| Every driver GPS ping: rider within 300 m of their stop? → text | `controllers/api_gps.php` | 34–36 |
+| Text goes out only once per ride | `models/route_model.php` | 148 |
+| GPS simulator for the demo (drive to a landmark) | `views/driver/home.php` | 42 |
 
-**Who gets what**
+**How "arriving" works:**
 
-| Who | When |
-| --- | --- |
-| Passenger | fare paid, balance low, not enough balance, unit full, reload successful, QR frozen / unfrozen, someone scanned your frozen QR |
-| Driver | unit is full |
-| Admin | a new passenger signed up |
+1. The passenger pays (QR scan).
+2. Home shows "You're riding BCN 105 · Libertad – SM Bacolod. Where are you getting off?" They pick **SM City Bacolod**.
+3. The driver's phone sends its GPS every 20 seconds. When the jeepney is within **300 m** (`ARRIVAL_RADIUS_M`, `config.php` line 47), the passenger gets: *"SmartRide: Arriving at SM City Bacolod. BCN 105 is about 250 m away. Get ready to get off."*
 
-**Demo**
+Texts are **off until the passenger turns them on**. Every text uses PhilSMS credits, and the demo accounts have made-up numbers that might belong to real people.
 
-As `juandc`, press **Turn on alerts** → Allow. In another window the driver scans juandc's QR. Within about 10 seconds a "Fare paid · ₱13.00" pop-up shows up, and the bell in the sidebar gets a number.
+---
+
+## 3. Maya Checkout (sandbox), which replaces PayMongo
+
+| What | File | Line |
+| --- | --- | --- |
+| Basic auth: key + `:` | `includes/maya.php` | 25–27 |
+| **Create checkout** with the **public** key: amount, reference number, return links | `includes/maya.php` | 31, 37 |
+| Passenger goes to Maya's page | `controllers/passenger_reload.php` | 43, 62 |
+| **Check the payment** with the **secret** key, by reference number | `includes/maya.php` | 67, 69 |
+| Only `PAYMENT_SUCCESS` for the **right amount** counts | `includes/maya.php` | 80 |
+| Pay page, status check and webhook all ask Maya the same way | `models/payment_model.php` | 48 |
+| Wallet credited once only (`WHERE status = 'pending'`) | `models/payment_model.php` | 85, 93 |
+| Webhook: takes only the reference number, then asks Maya | `controllers/maya_webhook.php` | 21, 26 |
+| "Simulate payment" works only in demo mode | `controllers/passenger_pay.php` | 33 |
+
+**Security points.** Maya's webhooks aren't signed, so we **never trust the message or the "success" redirect**. A fake webhook or a typed-in `?result=success` URL can't add money, because SmartRide always asks Maya with the secret key.
+
+**Sandbox test accounts** (also shown on the pay page):
+- **Visa** `4123 4501 3100 1381`: expiry 12/2030, CVV 123, 3-D Secure password `mctest1`.
+- **Maya wallet** `+639900100900`: password `Password@1`, OTP `123456`.
+
+The shared sandbox keys are public, so other people may be testing with them at the same time.
+
+---
+
+## 4. Gmail API: forgot password and payment receipts
+
+| What | File | Line |
+| --- | --- | --- |
+| Refresh token → access token (OAuth) | `includes/gmail.php` | 21 |
+| Send: RFC 2822 email, base64url, `users/me/messages/send` | `includes/gmail.php` | 36, 50 |
+| Same answer whether or not the email exists | `controllers/forgot_password.php` | 28 |
+| At most 3 links an hour per account | `controllers/forgot_password.php` | 30 |
+| Random 64-character token; only its **SHA-256 hash** is saved | `models/reset_model.php` | 7, 10 |
+| Link works once, for 30 minutes | `models/reset_model.php` | 29, 41 |
+| New password saved with `password_hash` | `controllers/reset_password.php` | 33 |
+| Fare and reload receipts, only if "Email me" is on | `models/notification_model.php` | 38 |
+
+**Setting up the Gmail API** (about 15 minutes, one time):
+
+1. Go to <https://console.cloud.google.com>. Create a project, then **APIs & Services → Library → Gmail API → Enable**.
+2. **OAuth consent screen:** External, Testing. Add your own Gmail as a **test user**.
+3. **Credentials → Create credentials → OAuth client ID → Web application.** Add the redirect URI `https://developers.google.com/oauthplayground`. Copy the **client ID** and **client secret**.
+4. Open <https://developers.google.com/oauthplayground>. Click ⚙ → **Use your own OAuth credentials**, and paste them in.
+5. In the scope box, type `https://www.googleapis.com/auth/gmail.send`, then **Authorize APIs** and sign in with that Gmail.
+6. Click **Exchange authorization code for tokens** and copy the **refresh token**.
+7. Put the client ID, client secret, refresh token and your Gmail address (`GMAIL_SENDER`) in `config/keys.php`.
+
+While the Google project is in **Testing**, the refresh token stops working after **7 days**. Get a new one (steps 4–6) the day before you present.
+
+**Without Gmail keys (demo mode):** the reset link is written to the PHP error log (`C:\xampp\php\logs\php_error_log`), never shown on screen.
+
+---
+
+## 5. OneSignal: push notifications
+
+The same as before: `includes/onesignal.php` sends the push at line 30, and the SDK and `OneSignal.login` are set up in `views/partials/dashboard_bottom.php` (lines 10, 14 and 20). Pushes now go out through the outbox too.
+
+---
+
+## Demo script
+
+1. **Admin** → Analytics → **Connected APIs**: five tags. Press **Test** on PhilSMS and Gmail and you get a text and an email.
+2. **Passenger** `juandc` → Profile → **Alerts** → turn on *Text me* and *Email me*. Use your own phone and email on that account.
+3. **Track a Jeepney:** the four routes with their landmarks A → B and bus road lines from Geoapify.
+4. **Reload → Maya Checkout ₱100.** Pay on Maya's sandbox page with the test Visa. Back on SmartRide it says "Paid", and an email receipt arrives.
+5. **Driver** `ramon` scans juandc's QR → "Fare paid" text + email.
+6. juandc's Home → **Where are you getting off?** → pick the last landmark (B).
+7. Driver Home → **GPS simulator** → *Drive here*, landmark by landmark. Near B, juandc gets the "Arriving at …" text.
+8. Sign out → **Forgot your password?** → the email arrives → set a new password.
