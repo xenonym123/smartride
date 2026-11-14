@@ -43,10 +43,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($method === 'maya') {
         // ---- Maya Checkout ----
         $reference = 'SR-' . bin2hex(random_bytes(8)); // our own reference number for Maya
-        if (maya_demo_mode()) {
-            $payment_id = create_payment($conn, $wallet['wallet_id'], $amount, 'demo', $reference);
-            go('passenger_pay.php?id=' . $payment_id);
-        }
         $payment_id = create_payment($conn, $wallet['wallet_id'], $amount, 'maya', $reference);
         $me = get_user_by_id($conn, $user_id);
         try {
@@ -82,7 +78,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $history = get_reloads($conn, $wallet['wallet_id'], 50);
-$demo_mode = maya_demo_mode();
 
 $title = 'Reload wallet';
 $current_page = 'passenger_reload.php';

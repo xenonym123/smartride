@@ -66,6 +66,10 @@ function get_fleet($conn)
     $stmt->execute();
     $units = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
+    // Simulated units only appear while PRESENTATION_TOOLS is on (config.php).
+    if (!PRESENTATION_TOOLS) {
+        $units = array_values(array_filter($units, function ($u) { return !$u['simulated']; }));
+    }
     foreach ($units as $i => $unit) {
         $units[$i]['route_id'] = $unit['route_id'] !== null ? (int) $unit['route_id'] : null;
         $units[$i]['simulated'] = (bool) $unit['simulated'];
@@ -94,8 +98,8 @@ function get_fleet($conn)
 }
 
 
-// ---------- Demo units (simulated = 1) ----------
-// So the map isn't empty in a demo, each line has demo jeepneys that drive it by themselves
+// ---------- Simulated units (simulated = 1, only while PRESENTATION_TOOLS is on) ----------
+// So the map isn't empty in a presentation, each line has demo jeepneys that drive it by themselves
 // at 15 km/h. Their position is worked out from the clock, so every viewer sees the same thing.
 // They have no driver and take no fares. Real units use the driver's phone GPS (api_gps.php).
 
@@ -107,7 +111,7 @@ function simulate_unit($conn, $unit)
     $unit['driver_name'] = null;
     $unit['latitude'] = null;
     $unit['longitude'] = null;
-    $unit['seen'] = 'live (demo unit)';
+    $unit['seen'] = 'just now';
     if ($unit['status'] !== 'active' || $unit['route_id'] === null) {
         $unit['state'] = $unit['status'] === 'active' ? 'parked' : $unit['status'];
         $unit['onboard'] = null;

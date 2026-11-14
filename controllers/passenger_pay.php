@@ -29,12 +29,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         go('passenger_reload.php');
     }
 
-    // Demo mode only: pretend Maya said PAYMENT_SUCCESS. Never allowed for a real Maya payment.
-    if (input('action') === 'simulate' && $payment['provider'] === 'demo') {
-        complete_payment($conn, $payment);
-        flash('success', peso($payment['amount']) . ' added to your wallet.');
-        go('passenger_reload.php');
-    }
     go($page);
 }
 

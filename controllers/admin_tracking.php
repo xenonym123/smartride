@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             route_path_for($conn, (int) $route['route_id']);
         }
         flash('success', geoapify_demo_mode()
-            ? 'Demo mode: no Geoapify key, so routes are drawn as straight lines between landmarks.'
+            ? 'No Geoapify key, so added routes are drawn as straight lines between landmarks.'
             : 'Landmarks and bus routes updated from Geoapify.');
         $back = 'admin_tracking.php#landmarks';
     }

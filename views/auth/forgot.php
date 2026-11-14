@@ -6,9 +6,6 @@
     <?php show_flash(); ?>
     <?php if ($sent): ?>
         <div class="flash success" role="status"><?= icon('check') ?><span>If that email is in SmartRide, a reset link is on its way. It expires in 30 minutes.</span></div>
-        <?php if ($demo): ?>
-            <p class="hint"><span class="pill pill-amber">Demo mode</span> Gmail isn't set up in config/keys.php, so no email was sent. The link was written to the PHP error log instead.</p>
-        <?php endif; ?>
     <?php endif; ?>
     <div class="field"><label for="email">Email</label>
         <input class="input" id="email" name="email" type="email" autocomplete="email" maxlength="100" required value="<?= e(old('email')) ?>"></div>

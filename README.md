@@ -38,7 +38,7 @@ The other demo passengers also use `smartride2026`. The old accounts (`user`, `d
 All keys go in **`config/keys.php`**. That file is in `.gitignore`, so git never uploads it to GitHub.
 
 - A fresh copy from GitHub doesn't have `keys.php` yet. Copy `config/keys.example.php` to `config/keys.php` and fill it in.
-- Any key left empty runs that feature in **demo mode**, labelled "Demo mode" on screen, so the site never breaks.
+- Any key left empty switches that feature off (Maya Checkout disappears, texts and emails aren't sent), so the site never breaks.
 - The admin's **Analytics** page shows which keys are set under **Connected APIs**, with **Test** buttons.
 
 | Key | Where to get it |
@@ -133,9 +133,9 @@ The database has these tables for the new features: `route_stops`, `route_paths`
 ## Notes
 
 - **Jeepney lines:** the 24 lines of Bacolod's Local Public Transport Route Plan, traced on the roads. Road lines © OpenStreetMap contributors (ODbL), from the [DASIG Bacolod route pack](https://github.com/andrewnyu/dasig-offline-transit). Lines 1–3, 5–11 and 16 are mapped street by street; the rest are traced from the LPTRP landmarks. Details in `APIS.md`.
-- **Demo jeepneys:** each line has 2 demo units that drive it by themselves (48 in total), so the map is alive in a demo. They take no fares. The real units are BCN 105–109.
+- **Simulated jeepneys:** while `PRESENTATION_TOOLS` is `true` in `config/config.php`, each line has 2 simulated units that drive it by themselves (48 in total). They take no fares. Set it to `false` before going live; the real units are BCN 105–109.
 
-- Cash reloads (partner store, kiosk) are approved right away in the demo.
+- Cash reloads (partner store, kiosk) are credited right away. Before a real launch, have staff confirm the cash first.
 - The onboard camera count is still simulated with the **Someone got on / got off** buttons.
-- The maps and the five APIs need internet. Demo mode works offline.
+- The maps and the five APIs need internet. Without it, the rest of SmartRide still works.
 - Needs PHP 8.0+ with `mysqli` and `curl`. XAMPP has both on by default.

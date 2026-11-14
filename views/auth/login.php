@@ -27,8 +27,5 @@
     <?php endif; ?>
     <p class="center muted small"><a class="linkbtn" href="forgot_password.php">Forgot your password?</a></p>
     <div class="staff-note">Operator or admin? Sign in with your assigned account. SmartRide opens your dashboard either way.</div>
-    <?php if (APP_DEBUG): ?>
-        <div class="demo">Demo accounts (password <code>smartride2026</code>): passenger <code>juandc</code>, driver <code>ramon</code>. The admin uses your existing <code>admin</code> account.</div>
-    <?php endif; ?>
 </form>
 <?php include '../views/partials/auth_bottom.php'; ?>

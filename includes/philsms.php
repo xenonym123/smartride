@@ -65,7 +65,7 @@ function philsms_request($method, $path, $body = null)
 function philsms_send($phone, $message)
 {
     if (!philsms_ready()) {
-        return ['ok' => false, 'message' => 'Demo mode: no PhilSMS token in config/keys.php.', 'data' => []];
+        return ['ok' => false, 'message' => 'PhilSMS isn\'t set up: add the token in config/keys.php.', 'data' => []];
     }
     $number = philsms_number($phone);
     if ($number === null) {

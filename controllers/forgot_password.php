@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             queue_message('email', $user['email'], 'Reset your SmartRide password', $html);
         } else {
             // DEMO MODE (no Gmail keys): the link goes to the PHP error log, never to the screen.
-            error_log('SmartRide DEMO (Gmail not set up) reset link for ' . $user['username'] . ': ' . $link);
+            error_log('SmartRide (Gmail not set up) reset link for ' . $user['username'] . ': ' . $link);
         }
     }
 
@@ -52,7 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $sent = !empty($_SESSION['reset_sent']);
 unset($_SESSION['reset_sent']);
-$demo = !gmail_ready();
 
 $title = 'Forgot password';
 include '../views/auth/forgot.php';

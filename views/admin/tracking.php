@@ -14,8 +14,8 @@
 <?php $real = array_filter($fleet, function ($u) { return !$u['simulated']; }); ?>
 <div class="card">
     <h3>Real units</h3>
-    <p class="hint" style="margin-top:-6px">Units with a driver and a phone sending GPS. The other <?= count($fleet) - count($real) ?> units on the map are demo units that drive their line by themselves (2 per line).</p>
-    <?php if (geoapify_demo_mode()): ?><p class="hint"><span class="pill pill-amber">Demo mode</span> Add a Geoapify key to show street names.</p><?php endif; ?>
+    <p class="hint" style="margin-top:-6px">Units with a driver and a phone sending GPS. <?php if (count($fleet) > count($real)): ?>The other <?= count($fleet) - count($real) ?> units on the map are simulated: they drive their line by themselves (2 per line). Turn them off with <code>PRESENTATION_TOOLS</code> in config.php.<?php endif; ?></p>
+    <?php if (geoapify_demo_mode()): ?><p class="hint">Add a Geoapify key in config/keys.php to show street names.</p><?php endif; ?>
     <?php $dots = ['on_trip' => 'green', 'parked' => 'brand', 'breakdown' => 'red', 'offline' => 'gray']; ?>
     <?php foreach ($real as $u): $dot = $dots[$u['state']]; ?>
         <div class="list-row">
@@ -34,7 +34,7 @@
         <div class="table-scroll"><table class="data fit">
             <thead><tr><th>Unit</th><th>Line</th><th>Plate</th><th>Seats</th><th class="r">Status</th></tr></thead>
             <tbody><?php foreach ($fleet as $u): ?>
-                <tr><td><b><?= e($u['unit_code']) ?></b><?= $u['simulated'] ? ' <span class="pill pill-gray">Demo</span>' : '' ?></td><td><?= $u['route_id'] ? (int) $u['route_id'] : '–' ?></td><td><?= e($u['plate_no']) ?></td><td class="num"><?= (int) $u['capacity'] ?></td>
+                <tr><td><b><?= e($u['unit_code']) ?></b><?= $u['simulated'] ? ' <span class="pill pill-gray">Simulated</span>' : '' ?></td><td><?= $u['route_id'] ? (int) $u['route_id'] : '–' ?></td><td><?= e($u['plate_no']) ?></td><td class="num"><?= (int) $u['capacity'] ?></td>
                     <td class="r"><form class="inline-form" method="post" action="admin_tracking.php"><?= csrf_field() ?>
                         <input type="hidden" name="action" value="unit_status"><input type="hidden" name="unit_id" value="<?= (int) $u['unit_id'] ?>">
                         <label class="sr-only" for="st<?= (int) $u['unit_id'] ?>">Status of <?= e($u['unit_code']) ?></label>

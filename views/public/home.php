@@ -17,7 +17,7 @@
                     <?= logo() ?>
                     <span class="muted small">Wallet balance</span>
                     <b style="font-size:30px;letter-spacing:-.5px">₱250.00</b>
-                    <div class="qrbox"><span id="demoQR"></span></div>
+                    <div class="qrbox"><span id="sampleQR"></span></div>
                     <b>Show this to the scanner</b>
                     <span class="pill pill-brand">Refreshes every 30 s</span>
                 </div>
@@ -52,5 +52,5 @@
 </section>
 
 <script src="../assets/vendor/qrcode.js"></script>
-<script>document.addEventListener('DOMContentLoaded', () => SMARTRIDE.drawQR(document.getElementById('demoQR'), 'SR-DEMO-QR'));</script>
+<script>document.addEventListener('DOMContentLoaded', () => SMARTRIDE.drawQR(document.getElementById('sampleQR'), 'SMARTRIDE-SAMPLE-QR'));</script>
 <?php include '../views/partials/public_bottom.php'; ?>
