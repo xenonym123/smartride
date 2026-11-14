@@ -71,7 +71,7 @@ page_head('Driver dashboard', 'Track your daily operations and earnings', $tools
                 <div class="field"><label for="unit_id">Unit</label>
                     <select class="input" id="unit_id" name="unit_id" required><?php foreach ($units as $u): ?><option value="<?= (int) $u['unit_id'] ?>"><?= e($u['unit_code']) ?> · <?= e($u['plate_no']) ?> · <?= (int) $u['capacity'] ?> seats</option><?php endforeach; ?></select></div>
                 <div class="field"><label for="route_id">Route</label>
-                    <select class="input" id="route_id" name="route_id" required><?php foreach ($routes as $r): ?><option value="<?= (int) $r['route_id'] ?>"><?= e($r['route_name']) ?> · <?= peso($r['base_fare']) ?></option><?php endforeach; ?></select></div>
+                    <select class="input" id="route_id" name="route_id" required><?php foreach ($routes as $r): ?><option value="<?= (int) $r['route_id'] ?>"><?= (int) $r['route_id'] ?> · <?= e($r['route_name']) ?> · <?= peso($r['base_fare']) ?></option><?php endforeach; ?></select></div>
                 <button class="btn block" type="submit"><?= icon('play') ?>Start trip</button>
             </form>
             <?php endif; ?>

@@ -1,5 +1,6 @@
 <?php
-// JSON for the maps: every route with its landmarks (A to B) and its road line from Geoapify.
+// JSON for the maps: every jeepney line with its color, landmarks (A to B) and road line.
+// The 24 LPTRP lines come traced on the roads. A route the admin adds is drawn by Geoapify.
 require_once '../config/db_connect.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
@@ -20,12 +21,16 @@ foreach (get_routes($conn) as $route) {
     $routes[] = [
         'id'      => (int) $route['route_id'],
         'name'    => $route['route_name'],
+        'short'   => $route['short_name'],
+        'color'   => $route['color'],
         'fare'    => peso($route['base_fare']),
         'stops'   => $stops,
         'points'  => $path['points'],
         'km'      => round($path['meters'] / 1000, 1),
         'minutes' => (int) round($path['seconds'] / 60),
-        'source'  => $path['source'],   // 'geoapify' = real road line, 'straight' = demo
+        // osm = mapped street by street on OpenStreetMap, lptrp = traced from the LPTRP landmarks,
+        // geoapify = Geoapify bus routing, straight = demo mode (no key)
+        'source'  => $path['source'],
     ];
 }
 json_out(['routes' => $routes]);

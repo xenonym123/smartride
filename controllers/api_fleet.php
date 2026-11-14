@@ -1,5 +1,5 @@
 <?php
-// JSON for the maps: where every jeepney is and how full it is.
+// JSON for the maps: where every jeepney is, which line it's on, and how full it is.
 // Used by Track a Jeepney (passenger) and Jeepney Tracking (admin).
 require_once '../config/db_connect.php';
 require_once '../includes/functions.php';
@@ -13,7 +13,8 @@ $units = get_fleet($conn);
 
 // Passengers don't need plate numbers or driver names. Send only what the map shows.
 if ($_SESSION['role'] === 'passenger') {
-    $keep = ['unit_code', 'route_name', 'capacity', 'onboard', 'seats_left', 'state', 'latitude', 'longitude', 'seen'];
+    $keep = ['unit_code', 'route_id', 'route_name', 'short_name', 'color', 'simulated', 'capacity', 'onboard', 'seats_left',
+             'state', 'latitude', 'longitude', 'seen'];
     $short = [];
     foreach ($units as $unit) {
         $row = [];

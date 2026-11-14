@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $code = strtoupper(preg_replace('/\s+/', ' ', input('unit_code')));
         $plate = strtoupper(input('plate_no'));
         $capacity = (int) input('capacity', '25');
+        $line = get_route($conn, (int) input('route_id'));
 
         if (!preg_match('/^[A-Z]{2,4} ?\d{2,4}$/', $code)) {
             flash('error', 'Unit codes look like BCN 110.');
@@ -31,9 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('error', $code . ' is already in the fleet.');
         } elseif (!preg_match('/^[A-Z0-9 -]{2,12}$/', $plate) || $capacity < 10 || $capacity > 40) {
             flash('error', 'Add a plate number and a capacity between 10 and 40.');
+        } elseif (!$line) {
+            flash('error', 'Pick the line this unit runs on.');
         } else {
-            add_unit($conn, $code, $plate, $capacity, $admin_id);
-            add_log($conn, $admin_id, 'unit_added', 'Added unit ' . $code . ' (' . $plate . ', ' . $capacity . ' seats)');
+            add_unit($conn, $code, $plate, $capacity, $admin_id, (int) $line['route_id']);
+            add_log($conn, $admin_id, 'unit_added', 'Added unit ' . $code . ' (' . $plate . ', ' . $capacity . ' seats) on line ' . $line['route_id']);
             flash('success', $code . ' is in the fleet.');
         }
     }
@@ -113,7 +116,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'refresh_routes') {
-        // Look every landmark up again on Geoapify and redraw every bus route line.
+        // Look landmarks up again on Geoapify and redraw the bus route lines. Lines traced on the
+        // roads (the 24 LPTRP lines) are skipped inside reset_route_geocoding()/clear_route_path().
         foreach (get_routes($conn) as $route) {
             reset_route_geocoding($conn, (int) $route['route_id']);
             route_path_for($conn, (int) $route['route_id']);
@@ -132,7 +136,8 @@ $fleet = get_fleet($conn);
 // GEOAPIFY: street name for each unit's last GPS point (cached in geo_cache).
 foreach ($fleet as $i => $unit) {
     $fleet[$i]['address'] = '';
-    if ($unit['latitude'] !== null && !geoapify_demo_mode()) {
+    // Only real units: demo units move every second, so their street would be looked up non-stop.
+    if ($unit['latitude'] !== null && !$unit['simulated'] && !geoapify_demo_mode()) {
         try {
             $fleet[$i]['address'] = geoapify_address($conn, $unit['latitude'], $unit['longitude']);
         } catch (Exception $ex) {

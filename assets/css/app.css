@@ -410,3 +410,42 @@ table.data .r { text-align: right; padding-right: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ---------- Jeepney lines map ---------- */
+.lines-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; margin-bottom: 20px; }
+.lines-layout .map { height: min(72vh, 720px); min-height: 460px; }
+.lines-panel { max-height: min(72vh, 720px); min-height: 460px; overflow-y: auto; }
+.lines-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+.lines-head h3 { margin: 0; }
+.line-search { margin-bottom: 8px; padding: 11px 14px; }
+.line-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 6px; background: none; border: 0; border-bottom: 1px solid var(--line); text-align: left; cursor: pointer; font: inherit; color: inherit; border-radius: 10px; }
+.line-row:hover, .line-row:focus-visible { background: var(--lav); }
+.line-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.line-text b { font-size: 15px; }
+.line-text small { color: var(--muted); font-size: 13px; }
+.line-go { color: var(--muted); font-size: 20px; }
+.line-no { flex: none; width: 30px; height: 30px; border-radius: 9px; color: #fff; font: 700 13px/30px var(--font); text-align: center; text-shadow: 0 1px 1px rgba(0, 0, 0, .25); }
+.back-link { background: none; border: 0; color: var(--brand); font: 600 14px var(--font); cursor: pointer; padding: 4px 0 10px; }
+.line-title { display: flex; gap: 12px; align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.line-title .line-no { width: 38px; height: 38px; line-height: 38px; font-size: 15px; border-radius: 11px; }
+.line-title b { display: block; font-size: 17px; line-height: 1.3; }
+.line-title small { display: block; margin-top: 3px; font-size: 13px; }
+.lines-panel h4 { margin: 18px 0 4px; font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.unit-row { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line); font: inherit; color: inherit; cursor: pointer; }
+.unit-row:hover { background: var(--lav); }
+.board-box { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #E8F0FE; }
+.board-box b { font-size: 16px; }
+.landmarks { list-style: none; margin: 6px 0 0; padding: 0; }
+.landmarks li { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 15px; }
+.lm-dot { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 3px solid; background: #fff; font: 700 10px/14px var(--font); text-align: center; color: var(--ink); }
+.unit-marker.full { box-shadow: 0 0 0 3px var(--amber), 0 2px 8px rgba(0, 0, 0, .25); }
+.board-marker { width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 4px solid #1A73E8; box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
+.map-btn { width: 34px; height: 34px; display: grid; place-items: center; background: #fff; border: 2px solid rgba(0, 0, 0, .2); border-radius: 4px; cursor: pointer; color: #1A73E8; padding: 0; }
+.map-btn svg { width: 18px; height: 18px; }
+@media (max-width: 1180px) {
+  .lines-layout { grid-template-columns: minmax(0, 1fr); }
+  .lines-panel { max-height: none; min-height: 0; }
+}
+@media (max-width: 600px) {
+  .lines-layout .map { height: 58vh; min-height: 340px; }
+}
