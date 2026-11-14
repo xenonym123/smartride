@@ -10,6 +10,7 @@ require_once '../models/notification_model.php';
 
 session_start();
 require_role_json(['passenger', 'driver', 'admin']);
+session_write_close(); // read-only: don't make the map's other requests wait for this one
 
 $user_id = (int) $_SESSION['user_id'];
 
