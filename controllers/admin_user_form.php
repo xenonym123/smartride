@@ -5,6 +5,7 @@ require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 require_once '../models/user_model.php';
 require_once '../models/wallet_model.php';
+require_once '../models/notification_model.php';
 
 session_start();
 require_role('admin');
@@ -73,6 +74,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw $ex;
         }
         add_log($conn, $admin_id, 'user_added', 'Added ' . $role . ' account ' . $d['username']);
+        if ($role === 'driver') {
+            add_notification($conn, $new_id, 'welcome', 'Welcome to SmartRide',
+                'Pick your unit and line on your dashboard to start a trip, then open the QR scanner to take fares.', 'driver_home.php');
+        } elseif ($role === 'passenger') {
+            add_notification($conn, $new_id, 'welcome', 'Welcome to SmartRide',
+                'Reload your wallet, then show your QR when you board.', 'passenger_reload.php');
+        }
         flash('success', $d['full_name'] . ' can now sign in as ' . $d['username'] . '.');
     }
 

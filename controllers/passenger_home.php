@@ -9,6 +9,7 @@ require_once '../models/fleet_model.php';
 require_once '../models/route_model.php';
 require_once '../models/user_model.php';
 require_once '../models/trip_model.php';
+require_once '../models/notification_model.php';
 
 session_start();
 require_role('passenger');
@@ -27,6 +28,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $trip_id = $ride ? mark_got_off($conn, $ride['txn_id'], $wallet['wallet_id']) : 0;
         if ($trip_id) {
             change_passenger_count($conn, $trip_id, -1);
+            // Tell the driver, with the new count.
+            $driver_id = trip_driver_id($conn, $trip_id);
+            $count = get_passenger_count($conn, $trip_id);
+            if ($driver_id) {
+                add_notification($conn, $driver_id, 'rider_off', first_name($_SESSION['full_name']) . ' got off' . ($ride['dest_name'] ? ' at ' . $ride['dest_name'] : ''),
+                    'On board now: ' . (int) $count['onboard'] . '. The count went down by itself.', 'driver_count.php');
+            }
             add_log($conn, $user_id, 'got_off', 'Got off ' . $ride['unit_code'] . ($ride['dest_name'] ? ' at ' . $ride['dest_name'] : ''));
             flash('success', 'Thanks for riding' . ($ride['dest_name'] ? '. You got off at ' . $ride['dest_name'] : '') . '.');
         }

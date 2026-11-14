@@ -19,6 +19,26 @@ function get_active_trip($conn, $driver_id)
     return $stmt->get_result()->fetch_assoc();
 }
 
+// Who is driving this trip (for driver alerts). 0 if there's no such trip.
+function trip_driver_id($conn, $trip_id)
+{
+    $stmt = $conn->prepare("SELECT driver_id FROM trips WHERE trip_id = ?");
+    $stmt->bind_param("i", $trip_id);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return $row ? (int) $row['driver_id'] : 0;
+}
+
+// The driver of the trip a unit is on right now, or 0 if it isn't on a trip.
+function unit_driver_id($conn, $unit_id)
+{
+    $stmt = $conn->prepare("SELECT driver_id FROM trips WHERE unit_id = ? AND ended_at IS NULL ORDER BY trip_id DESC LIMIT 1");
+    $stmt->bind_param("i", $unit_id);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return $row ? (int) $row['driver_id'] : 0;
+}
+
 // Starts a trip and its passenger count at zero. Both saved together, or neither.
 function start_trip($conn, $driver_id, $unit_id, $route_id)
 {
