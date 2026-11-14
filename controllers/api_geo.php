@@ -12,6 +12,7 @@ require_once '../models/fleet_model.php';
 
 session_start();
 require_role_json(['passenger', 'admin']);
+session_write_close(); // read-only: don't make the map's other requests wait for this one
 
 $action = input('action');
 $lat = (float) input('lat');

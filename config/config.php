@@ -1,7 +1,7 @@
 <?php
 // SmartRide settings. Change the database part to match your XAMPP.
 
-$db_host = 'localhost';
+$db_host = '127.0.0.1';      // not 'localhost': on Windows that tries IPv6 first and adds about a second to every page
 $db_user = 'root';
 $db_pass = '';            // XAMPP's root password is empty by default
 $db_name = 'smartride_db';

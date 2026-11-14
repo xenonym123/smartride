@@ -19,7 +19,7 @@ The code style is the same as before: plain PHP functions, MySQLi with `bind_par
 3. Open <http://localhost/phpmyadmin>, click **Import**, pick `smartride/database/smartride_db.sql`, click **Import**. That makes a new database called `smartride_db`. Your old `onetap_db` and `erased_db` stay as they are.
 4. Go to <http://localhost/smartride/>.
 
-If your MySQL root user has a password, put it in `config/config.php`.
+If your MySQL root user has a password, put it in `config/config.php`. The database host is `127.0.0.1` on purpose: `localhost` makes every page about a second slower on Windows.
 
 Re-import the SQL file the day before you present. The demo trips and fares are dated from when you import, so "today" stays today.
 
