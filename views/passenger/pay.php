@@ -14,13 +14,8 @@
             <?php endif; ?>
             <p><span class="pill pill-brand" id="payCountdown" data-seconds="<?= (int) $seconds_left ?>"><?= icon('clock') ?>Open for 60:00</span></p>
 
-            <?php if ($payment['provider'] === 'maya'): ?>
+            <?php if ($payment['provider'] === 'maya' && $payment['checkout_url']): ?>
                 <a class="btn block" href="<?= e($payment['checkout_url']) ?>"><?= icon('wallet') ?>Continue to Maya</a>
-            <?php else: ?>
-                <form method="post" action="passenger_pay.php?id=<?= (int) $payment['payment_id'] ?>">
-                    <?= csrf_field() ?><input type="hidden" name="action" value="simulate">
-                    <button class="btn block" type="submit"><?= icon('check') ?>Simulate payment (demo only)</button>
-                </form>
             <?php endif; ?>
             <form method="post" action="passenger_pay.php?id=<?= (int) $payment['payment_id'] ?>" data-confirm="Cancel this reload?">
                 <?= csrf_field() ?><input type="hidden" name="action" value="cancel">
@@ -49,8 +44,6 @@
             <div class="list-row"><div class="who"><b>Visa 4123 4501 3100 1381</b><span>Expiry 12/2030 · CVV 123 · 3-D Secure password mctest1</span></div></div>
             <div class="list-row"><div class="who"><b>Mastercard 5123 4567 8901 2346</b><span>Expiry 12/2030 · CVV 111 · no 3-D Secure</span></div></div>
             <div class="list-row"><div class="who"><b>Maya wallet +639900100900</b><span>Password Password@1 · OTP 123456</span></div></div>
-        <?php else: ?>
-            <p class="hint"><span class="pill pill-amber">Demo mode</span> No Maya keys in <code>config/keys.php</code>, so this is a stand-in for Maya's page.</p>
         <?php endif; ?>
     </div>
 </div>

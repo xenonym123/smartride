@@ -16,14 +16,14 @@
                 <span class="hint">Between <?= peso(RELOAD_MIN, 0) ?> and <?= peso(RELOAD_MAX, 0) ?></span></div>
             <div class="field"><label>Pay with</label>
                 <div class="methods">
-                    <?php foreach (reload_methods() as $key => $label): ?>
-                        <label><input type="radio" name="method" value="<?= e($key) ?>" <?= $key === 'maya' ? 'checked' : '' ?>><?= e($label) ?></label>
+                    <?php $first = true; foreach (reload_methods() as $key => $label): ?>
+                        <label><input type="radio" name="method" value="<?= e($key) ?>" <?= $first ? 'checked' : '' ?>><?= e($label) ?></label>
+                    <?php $first = false; ?>
                     <?php endforeach; ?>
                 </div></div>
             <button class="btn lg block" type="submit">Reload wallet</button>
-            <p class="hint"><b>Maya Checkout</b> opens Maya's payment page, where you pay with a card or your Maya wallet. The money lands once Maya confirms it. Cash reloads are approved right away in the demo.</p>
-            <?php if ($demo_mode): ?>
-                <p class="hint"><span class="pill pill-amber">Demo mode</span> No Maya keys in config/keys.php, so Maya Checkout shows a stand-in page with a "Simulate payment" button.</p>
+            <?php if (isset(reload_methods()['maya'])): ?>
+                <p class="hint"><b>Maya Checkout</b> opens Maya's payment page, where you pay with a card or your Maya wallet. The money lands once Maya confirms it.</p>
             <?php endif; ?>
         </form>
     </div>

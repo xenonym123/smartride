@@ -10,7 +10,7 @@
 
 **Where the keys live.** All keys go in `config/keys.php`. `config/config.php` reads that file at line 24. `.gitignore` keeps `keys.php` off GitHub, so a fresh copy from GitHub starts with `config/keys.example.php` instead: copy it to `keys.php` and fill it in.
 
-**When a key is missing.** That API runs in **demo mode**, with a "Demo mode" label on screen, so the site never breaks.
+**When a key is missing.** That feature switches itself off (Maya Checkout disappears from Reload, texts and emails aren't sent) and the rest of SmartRide keeps working. Admin → Connected APIs shows "Not set up".
 
 **One function for every call.** All five APIs go through `api_request()` in `includes/http.php` (line 12).
 
@@ -26,7 +26,7 @@
 
 - At first every line is on the map, and the panel lists them **closest to you first** ("10 m from you").
 - **Pick a line** and only that line, its landmarks (A → B) and **its jeepneys** stay on the map. Pick another and the first one disappears. The address remembers it (`#line-6`), so you can share a link to a line.
-- The **blue dot** is you (the phone's GPS, followed as you move). If GPS is blocked, Geoapify's IP location gives a rough spot.
+- The **blue dot** is you: the device's own location (GPS on a phone), followed as you move, with a circle showing how accurate it is. A rough reading never replaces a sharper one, and the internet-connection guess is never used for the dot. If the device only knows a rough spot (a laptop without GPS), the panel says so.
 - **Where to get on:** SmartRide finds the closest point of the picked line and Geoapify draws the walking route there.
 
 | What | File | Line |
@@ -45,7 +45,7 @@
 
 **Where the lines come from.** The road lines are from the [DASIG Bacolod route pack](https://github.com/andrewnyu/dasig-offline-transit), built from OpenStreetMap. Lines 1–3, 5–11 and 16 are **mapped street by street** on OpenStreetMap (`source = 'osm'`). The other 13 are **traced from the LPTRP landmarks** along OpenStreetMap roads (`source = 'lptrp'`), so they're a best estimate. Riders should still check the signboard. Each landmark sits on its line's road. Route data © OpenStreetMap contributors, under the Open Database License (ODbL); the credit is on the map and on the page.
 
-**Demo jeepneys.** Each line has 2 demo units (`jeepneys.simulated = 1`, 48 in total) that drive their line at 15 km/h, so the map is alive during a demo. They have no driver and take no fares, and the panel labels them "demo unit". The 5 real units (BCN 105–109) move only when a driver's phone sends GPS.
+**Simulated jeepneys.** While `PRESENTATION_TOOLS` is `true` in `config/config.php`, each line has 2 simulated units (`jeepneys.simulated = 1`, 48 in total) that drive their line at 15 km/h. They have no driver and take no fares; admins see them tagged "Simulated". Set `PRESENTATION_TOOLS` to `false` for a live service: only real units (BCN 105–109 and any you add) stay on the map, moving when a driver's phone sends GPS.
 
 **Geoapify and the traced lines.** The 24 traced lines never call Geoapify routing. Adding or removing a landmark on one keeps its road line. A route the admin **adds** gets its landmarks found by name and its bus road line from Geoapify, as before.
 
@@ -67,7 +67,7 @@
 | Only a landmark on the route they're riding is accepted | `models/route_model.php` | 122 |
 | Every driver GPS ping: rider within 300 m of their stop? → text | `controllers/api_gps.php` | 34–36 |
 | Text goes out only once per ride | `models/route_model.php` | 148 |
-| GPS simulator for the demo (drive to a landmark) | `views/driver/home.php` | 42 |
+| "Move to a landmark" for presentations (only while `PRESENTATION_TOOLS` is on) | `views/driver/home.php` | 43 |
 
 **How "arriving" works:**
 
@@ -95,7 +95,6 @@ Texts are **off until the passenger turns them on**. Every text uses PhilSMS cre
 | Pay page, status check and webhook all ask Maya the same way | `models/payment_model.php` | 48 |
 | Wallet credited once only (`WHERE status = 'pending'`) | `models/payment_model.php` | 85, 93 |
 | Webhook: takes only the reference number, then asks Maya | `controllers/maya_webhook.php` | 21, 26 |
-| "Simulate payment" works only in demo mode | `controllers/passenger_pay.php` | 33 |
 
 **Security points.** Maya's webhooks aren't signed, so we **never trust the message or the "success" redirect**. A fake webhook or a typed-in `?result=success` URL can't add money, because SmartRide always asks Maya with the secret key.
 
@@ -138,7 +137,7 @@ While the Google project is in **Testing**, the refresh token stops working afte
 - `HTTP 400 invalid_grant`: the refresh token expired (7 days) or was copied wrong. Redo steps 4–6.
 - No line at all: the email you typed isn't on any SmartRide account, so nothing was sent (on purpose, see above).
 
-**Without Gmail keys (demo mode):** the reset link is written to the PHP error log (`C:\xampp\php\logs\php_error_log`), never shown on screen.
+**Without Gmail keys:** no email is sent; the reset link is written to the PHP error log (`C:\xampp\php\logs\php_error_log`), never shown on screen.
 
 ---
 

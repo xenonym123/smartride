@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             email_html('Test email', ['If you can read this, the Gmail API is working.']));
         flash('success', gmail_ready()
             ? 'Test email sent to ' . $me['email'] . ' through the Gmail API.'
-            : 'Demo mode: add your Gmail API keys in config/keys.php to send real emails.');
+            : 'Gmail isn\'t set up: add the Gmail API keys in config/keys.php.');
     }
     go('admin_home.php');
 }
@@ -78,16 +78,16 @@ $activity = get_logs($conn, '', 6);
 // Which outside APIs have keys in config.php. Only says yes/no, never shows the keys.
 $apis = [
     ['Geoapify', 'Maps: street names, route landmarks, bus route lines, walking routes',
-        geoapify_demo_mode() ? 'demo' : 'on', geoapify_demo_mode() ? 'Demo mode · no key' : 'Key set', ''],
+        geoapify_demo_mode() ? 'demo' : 'on', geoapify_demo_mode() ? 'Not set up · no key' : 'Key set', ''],
     ['Maya Checkout', 'Payment gateway for wallet reloads (sandbox, no real money)',
-        maya_demo_mode() ? 'demo' : 'on', maya_demo_mode() ? 'Demo mode · no keys' : 'Sandbox keys set', ''],
+        maya_demo_mode() ? 'demo' : 'on', maya_demo_mode() ? 'Not set up · no keys' : 'Sandbox keys set', ''],
     ['OneSignal', 'Push notifications to phones and computers',
         onesignal_ready() ? 'on' : 'demo',
-        onesignal_ready() ? 'Keys set' : (ONESIGNAL_APP_ID !== '' ? 'REST API key missing' : 'Demo mode · no keys'), 'test_push'],
+        onesignal_ready() ? 'Keys set' : (ONESIGNAL_APP_ID !== '' ? 'REST API key missing' : 'Not set up · no keys'), 'test_push'],
     ['PhilSMS', 'Texts: fare paid, and arriving near your stop',
-        philsms_ready() ? 'on' : 'demo', philsms_ready() ? 'Token set' : 'Demo mode · no token', 'test_sms'],
+        philsms_ready() ? 'on' : 'demo', philsms_ready() ? 'Token set' : 'Not set up · no token', 'test_sms'],
     ['Gmail API', 'Emails: forgot password and payment receipts',
-        gmail_ready() ? 'on' : 'demo', gmail_ready() ? 'Keys set' : 'Demo mode · no keys', 'test_email'],
+        gmail_ready() ? 'on' : 'demo', gmail_ready() ? 'Keys set' : 'Not set up · no keys', 'test_email'],
 ];
 
 $title = 'Analytics';

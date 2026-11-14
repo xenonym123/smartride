@@ -82,7 +82,7 @@ function geoapify_walk_route($from_lat, $from_lng, $to_lat, $to_lng)
 function geoapify_ip_location($ip)
 {
     if (geoapify_demo_mode()) {
-        return ['lat' => 10.6765, 'lng' => 122.9509, 'city' => 'Bacolod (demo)'];
+        return ['lat' => 10.6765, 'lng' => 122.9509, 'city' => 'Bacolod'];
     }
     $params = [];
     // On XAMPP the visitor is often 127.0.0.1 or 192.168.x.x. Those aren't real internet

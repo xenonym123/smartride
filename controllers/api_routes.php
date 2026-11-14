@@ -9,7 +9,6 @@ require_once '../models/fleet_model.php';
 
 session_start();
 require_role_json(['passenger', 'driver', 'admin']);
-session_write_close(); // read-only: don't make the map's other requests wait for this one
 
 $routes = [];
 foreach (get_routes($conn) as $route) {

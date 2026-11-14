@@ -1,7 +1,7 @@
 <?php
 // SmartRide settings. Change the database part to match your XAMPP.
 
-$db_host = '127.0.0.1';      // not 'localhost': on Windows that tries IPv6 first and adds about a second to every page
+$db_host = 'localhost';
 $db_user = 'root';
 $db_pass = '';            // XAMPP's root password is empty by default
 $db_name = 'smartride_db';
@@ -10,6 +10,11 @@ $db_port = 3306;
 // true  = show the real error message on screen (only while you're coding)
 // false = show a friendly error page and write the details to the PHP error log
 define('APP_DEBUG', false);
+
+// true  = for presentations: 2 simulated jeepneys drive each line by themselves, and drivers
+//         get a tool to move their jeepney to a landmark (to show the "arriving" alert).
+// false = live service: only real jeepneys (driver phones sending GPS) are on the map.
+define('PRESENTATION_TOOLS', true);
 
 define('QR_WINDOW', 30);     // seconds before a ride QR changes
 define('RELOAD_MIN', 20);    // smallest reload, in pesos
@@ -66,13 +71,16 @@ if (APP_DEBUG) {
 
 // Ways a passenger can reload. 'maya' goes through Maya Checkout. The other two are
 // cash over the counter, approved right away in the demo.
+// Maya Checkout is offered only when its keys are in config/keys.php.
 function reload_methods()
 {
-    return [
-        'maya'  => 'Maya Checkout (card or Maya wallet)',
-        'store' => 'Partner store (cash)',
-        'kiosk' => 'SmartRide kiosk (cash)',
-    ];
+    $methods = [];
+    if (MAYA_PUBLIC_KEY !== '' && MAYA_SECRET_KEY !== '') {
+        $methods['maya'] = 'Maya Checkout (card or Maya wallet)';
+    }
+    $methods['store'] = 'Partner store (cash)';
+    $methods['kiosk'] = 'SmartRide kiosk (cash)';
+    return $methods;
 }
 
 // Name of a reload method for the history lists. Older reloads used gcash / maya.

@@ -25,7 +25,7 @@
                 <?php endif; ?>
             <?php endforeach; ?>
         </div>
-        <p class="hint" style="margin-top:16px"><?= $riding ?> people riding right now across <?= $on_road ?> units, counting the <?= count(array_filter($fleet, function ($u) { return $u['simulated']; })) ?> demo units on the 24 lines (see the map).</p>
+        <p class="hint" style="margin-top:16px"><?= $riding ?> people riding right now across <?= $on_road ?> units on the 24 lines (see the map).</p>
     </div>
     <div class="card">
         <h3>Today's totals</h3>
@@ -55,7 +55,7 @@
             <?php endif; ?>
         </div>
     <?php endforeach; ?>
-    <p class="hint" style="margin-top:12px">Keys go in <code>config/keys.php</code> (never uploaded to GitHub). Without a key, that feature runs in demo mode. Test buttons send to your own account.</p>
+    <p class="hint" style="margin-top:12px">Keys go in <code>config/keys.php</code> (never uploaded to GitHub). Without a key, that feature is switched off and the rest of SmartRide keeps working. Test buttons send to your own account.</p>
 </div>
 
 <div class="card">

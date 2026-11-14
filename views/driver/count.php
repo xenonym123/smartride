@@ -24,8 +24,8 @@ page_head('Passenger count', $sub, $tools);
         </div>
         <div class="statusbar ok" id="statusBar"><span class="pulse"></span><span id="statusText">Taking fares.</span></div>
         <div style="margin-top:22px">
-            <h3 style="margin-bottom:4px">Camera simulator</h3>
-            <p class="hint">There's no camera in the demo, so use these for riders who board or get off. A paid QR scan adds one automatically.</p>
+            <h3 style="margin-bottom:4px">Passenger count</h3>
+            <p class="hint">Tap these for riders who board or get off without scanning. A paid QR scan adds one automatically.</p>
             <div class="sim">
                 <button class="btn ghost" type="button" data-delta="1"><?= icon('plus') ?>Someone got on</button>
                 <button class="btn ghost" type="button" data-delta="-1"><?= icon('minus') ?>Someone got off</button>

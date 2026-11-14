@@ -120,15 +120,6 @@
      * GEOLOCATION API (passenger side). Asks the browser where the passenger is.
      * Calls onFound({lat, lng, accuracy}) or onError(message).
      */
-    // The street map behind every map: CARTO's light "Positron" style (OpenStreetMap data),
-    // served from a fast CDN, with sharp tiles on phones. Pale, so the jeepney lines stand out.
-    streetMap(map, extraCredit) {
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        subdomains: 'abcd', maxZoom: 20, detectRetina: false,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' + extraCredit,
-      }).addTo(map);
-    },
-
     // ---------- Jeepney lines map (Track a Jeepney, admin Jeepney Tracking) ----------
     // At first every line is drawn in its own color. Pick a line and only that line, its
     // landmarks and its jeepneys stay on the map; pick another and the first one goes away.
@@ -142,9 +133,11 @@
       el.innerHTML = '';
       const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
       const map = L.map(el, { zoomControl: true }).setView([10.665, 122.965], 13);
-      SMARTRIDE.streetMap(map, ' · Routes: OSM (ODbL) via DASIG, Bacolod LPTRP');
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap contributors · Routes: OSM (ODbL) via DASIG, Bacolod LPTRP',
+      }).addTo(map);
       const busSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg>';
-      const SOURCE = { osm: 'Mapped street by street (OpenStreetMap)', lptrp: 'Traced from the LPTRP landmarks', geoapify: 'Road line from Geoapify', straight: 'Demo mode · straight lines' };
+      const SOURCE = { osm: 'Mapped street by street (OpenStreetMap)', lptrp: 'Traced from the LPTRP landmarks', geoapify: 'Road line from Geoapify', straight: 'Straight lines between landmarks' };
       const STATE = { on_trip: 'On the road', parked: 'Parked', breakdown: 'Breakdown', offline: 'Offline' };
 
       let routes = [];
@@ -231,7 +224,7 @@
           const far = me ? `<br>${fmtDist(SMARTRIDE.distanceKm(me.lat, me.lng, u.latitude, u.longitude) * 1000)} from you` : '';
           const seats = live ? `<br>${u.onboard}/${u.capacity} on board · ${u.seats_left ? u.seats_left + ' seats left' : 'Full'}` : `<br>${STATE[u.state] || u.state}`;
           const extra = opts.admin && !u.simulated ? `<br><small>${esc(u.plate_no || '')}${u.driver_name ? ' · ' + esc(u.driver_name) : ''}</small>` : '';
-          const html = `<b>${esc(u.unit_code)}</b> · Line ${u.route_id}${seats}${far}${extra}<br><small>${u.simulated ? 'Demo unit, drives the line by itself' : 'Last GPS ' + esc(u.seen)}</small>`;
+          const html = `<b>${esc(u.unit_code)}</b> · Line ${u.route_id}${seats}${far}${extra}<br><small>Last GPS ${esc(u.seen)}</small>`;
           if (unitMarkers[u.unit_code]) unitMarkers[u.unit_code].setLatLng([u.latitude, u.longitude]).setIcon(icon).setPopupContent(html);
           else unitMarkers[u.unit_code] = L.marker([u.latitude, u.longitude], { icon, title: u.unit_code, zIndexOffset: 800 }).addTo(map).bindPopup(html);
         });
@@ -258,6 +251,7 @@
           <p class="hint" style="margin:-4px 0 10px">Bacolod's Local Public Transport Route Plan. Tap a line to see only that line and its jeepneys.${me ? ' Closest lines first.' : ''}</p>
           <label class="sr-only" for="lineSearch">Search lines</label>
           <input class="input line-search" id="lineSearch" type="search" placeholder="Search a line or a place, e.g. Libertad" value="${esc(query)}" autocomplete="off">
+          ${locNote ? `<p class="hint loc-note">${esc(locNote)}</p>` : ''}
           <div class="line-list">${rows || '<p class="empty">No line matches that.</p>'}</div>`;
         const box = panel.querySelector('#lineSearch');
         box.addEventListener('input', () => { query = box.value; const pos = box.selectionStart; renderList(); const nb = panel.querySelector('#lineSearch'); nb.focus(); nb.setSelectionRange(pos, pos); });
@@ -274,7 +268,6 @@
           const bits = [];
           if (live) bits.push(`${u.onboard}/${u.capacity} on board`);
           if (u.m != null) bits.push(`${fmtDist(u.m)} from you`);
-          if (u.simulated) bits.push('demo unit');
           return `<button type="button" class="list-row unit-row" data-unit="${esc(u.unit_code)}">
             <span class="dot" style="background:${live ? esc(r.color) : '#9A9CB4'}"></span>
             <span class="who" style="flex:1;text-align:left"><b>${esc(u.unit_code)}</b><span>${bits.join(' · ') || 'No position yet'}</span></span>${right}</button>`;
@@ -286,10 +279,11 @@
         } else if (me && board && board.ok) {
           boardHtml = `<div class="board-box"><span class="muted small">Where to get on</span>
             <b>Walk ${fmtDist(board.meters)} · about ${board.minutes} min</b>
-            <span>to the line near ${esc(board.landmark)}${board.demo ? ' <span class="pill pill-amber">Demo mode</span>' : ''}</span></div>`;
+            <span>to the line near ${esc(board.landmark)}</span></div>`;
         } else if (!me) {
-          boardHtml = '<p class="hint">Share your location to see how far you are from this line and where to get on.</p>';
+          boardHtml = `<p class="hint">${esc(locNote || 'Share your location to see how far you are from this line and where to get on.')}</p>`;
         }
+        if (me && locNote) boardHtml += `<p class="hint loc-note">${esc(locNote)}</p>`;
         panel.innerHTML = `
           <button type="button" class="back-link" data-back>‹ All lines</button>
           <div class="line-title">${lineNo(r)}<div><b>${esc(r.name)}</b>
@@ -355,49 +349,55 @@
       };
 
       // ---- the user's own location (blue dot)
+      // Only the device's own position is used for the dot: GPS on a phone, Wi-Fi / GPS on a
+      // laptop. Readings keep coming in (watchPosition) and a rough reading never replaces a
+      // sharper recent one. The internet-connection guess is never shown as "you".
+      let locNote = '';      // shown under the line list when the reading is rough or blocked
       const placeMe = (pos, center) => {
         const moved = !me || SMARTRIDE.distanceKm(me.lat, me.lng, pos.lat, pos.lng) > 0.05;
         me = pos;
         routes.forEach((r) => { r.near = r.points.length > 1 ? distToLine(r.points, me.lat, me.lng) : Infinity; });
         const ic = L.divIcon({ className: '', iconSize: [18, 18], iconAnchor: [9, 9], html: '<div class="you-marker"></div>' });
-        if (youMarker) youMarker.setLatLng([pos.lat, pos.lng]);
-        else youMarker = L.marker([pos.lat, pos.lng], { icon: ic, title: 'You are here', zIndexOffset: 1000 }).addTo(map).bindPopup('<b>You are here</b>');
-        if (pos.accuracy && pos.accuracy < 2000) {
-          if (youCircle) youCircle.setLatLng([pos.lat, pos.lng]).setRadius(pos.accuracy);
-          else youCircle = L.circle([pos.lat, pos.lng], { radius: pos.accuracy, color: '#1A73E8', weight: 1, fillOpacity: 0.08, interactive: false }).addTo(map);
-        }
-        if (center) map.setView([pos.lat, pos.lng], Math.max(map.getZoom(), 15));
+        const label = `<b>You are here</b><br><small>Accurate to about ${fmtDist(pos.accuracy)}</small>`;
+        if (youMarker) youMarker.setLatLng([pos.lat, pos.lng]).setPopupContent(label);
+        else youMarker = L.marker([pos.lat, pos.lng], { icon: ic, title: 'You are here', zIndexOffset: 1000 }).addTo(map).bindPopup(label);
+        if (youCircle) youCircle.setLatLng([pos.lat, pos.lng]).setRadius(pos.accuracy);
+        else youCircle = L.circle([pos.lat, pos.lng], { radius: pos.accuracy, color: '#1A73E8', weight: 1, fillOpacity: 0.08, interactive: false }).addTo(map);
+        locNote = pos.accuracy > 300
+          ? `Your device only knows your rough spot (within ${fmtDist(pos.accuracy)}). Turn on Location / GPS, or open SmartRide on your phone for your exact spot.`
+          : '';
+        if (center) map.setView([pos.lat, pos.lng], Math.max(map.getZoom(), pos.accuracy > 300 ? 14 : 16));
         if (moved && picked !== null) loadBoard();
         drawUnits();
         render();
       };
       let watching = false;
-      const useIpLocation = async (why) => {
-        if (!opts.geoUrl) return;
-        try {
-          const d = await SMARTRIDE.get(`${opts.geoUrl}?action=ip`);
-          if (!d.ok) throw new Error();
-          SMARTRIDE.toast({ title: 'Using your rough area', body: `${why} For now we're using ${d.city}, from your internet connection.` });
-          placeMe({ lat: d.lat, lng: d.lng, accuracy: 0 }, false);
-        } catch (e) {
-          SMARTRIDE.toast({ title: 'Location', body: why });
-        }
+      let lastFix = 0;
+      const onFix = (p, center) => {
+        const pos = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: Math.max(1, p.coords.accuracy || 0) };
+        // Keep a sharper reading from the last 30 s over a much rougher new one.
+        if (me && pos.accuracy > me.accuracy * 2 && Date.now() - lastFix < 30000) return;
+        lastFix = Date.now();
+        placeMe(pos, center);
       };
       const findMe = (center) => {
-        if (me && center) { map.setView([me.lat, me.lng], Math.max(map.getZoom(), 15)); }
+        if (me && center) map.setView([me.lat, me.lng], Math.max(map.getZoom(), me.accuracy > 300 ? 14 : 16));
         if (watching) return;
-        if (!('geolocation' in navigator)) { useIpLocation('This browser has no location support.'); return; }
+        if (!('geolocation' in navigator)) { locNote = "This browser can't share your location."; render(); return; }
+        if (!window.isSecureContext) { locNote = 'Your location only works on https:// (or localhost). Open SmartRide from its https address.'; render(); return; }
         watching = true;
-        let first = true;
+        let first = !me;
         navigator.geolocation.watchPosition(
-          (p) => { placeMe({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }, first && center); first = false; },
+          (p) => { onFix(p, center || first); first = false; },
           (err) => {
-            watching = false;
-            if (!me) useIpLocation(err.code === 1
-              ? 'Location is blocked. Allow it in your browser settings for this site to see where you are.'
-              : "We couldn't get your exact location.");
+            if (err.code === 1) {             // blocked by the user / browser settings
+              watching = false;
+              locNote = 'Location is blocked. Allow it for this site (the lock icon in the address bar), then tap the target button on the map.';
+              render();
+            }
+            // Timeouts: the watch keeps going and the next reading will arrive.
           },
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 },
         );
       };
       const LocateControl = L.Control.extend({
@@ -488,7 +488,7 @@
         // Demo mode (no OneSignal App ID): use the browser's own notifications instead.
         if (!supported) { SMARTRIDE.toast({ title: 'Not supported', body: "This browser can't show notifications." }); return; }
         const answer = await Notification.requestPermission();
-        if (answer === 'granted') SMARTRIDE.popup({ title: 'Alerts are on (demo mode)', body: 'Add OneSignal keys in config.php for real push.', link: '' });
+        if (answer === 'granted') SMARTRIDE.popup({ title: 'Alerts are on', body: "You'll see alerts here while SmartRide is open.", link: '' });
         else SMARTRIDE.toast({ title: 'Alerts are off', body: 'You can still see everything on the Notifications page.' });
       });
 
@@ -542,7 +542,9 @@
       }
       el.innerHTML = '';
       const map = L.map(el, { scrollWheelZoom: false }).setView([10.672, 122.958], 13);
-      SMARTRIDE.streetMap(map, '');
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18, attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
       const colors = { on_trip: '#12A150', parked: '#5B52EE', breakdown: '#E0343F', offline: '#9A9CB4' };
       const busSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg>';
       const markers = {};

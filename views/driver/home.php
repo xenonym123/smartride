@@ -39,7 +39,8 @@ page_head('Driver dashboard', 'Track your daily operations and earnings', $tools
             </div>
             <p class="hint" style="margin-top:12px">Keep this page open on your phone. It shares your location with the map while the trip runs.</p>
 
-            <h3 style="margin:20px 0 6px">GPS simulator <span class="pill pill-amber">Demo</span></h3>
+            <?php if (PRESENTATION_TOOLS): ?>
+            <h3 style="margin:20px 0 6px">Move to a landmark</h3>
             <p class="hint" style="margin-top:0">Moves <?= e($trip['unit_code']) ?> to a landmark on its route, as if you drove there. Riders getting off there get their "arriving" text.</p>
             <div class="inline-form" style="flex-wrap:wrap">
                 <label class="sr-only" for="simStop">Landmark</label>
@@ -60,6 +61,7 @@ page_head('Driver dashboard', 'Track your daily operations and earnings', $tools
               if (d.ok && box.selectedIndex < box.options.length - 1) box.selectedIndex += 1; // next landmark
             });
             </script>
+            <?php endif; ?>
         <?php else: ?>
             <h3>Start a trip</h3>
             <?php if (!$units): ?>
