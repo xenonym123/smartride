@@ -7,6 +7,7 @@ require_once '../models/trip_model.php';
 require_once '../models/fare_model.php';
 require_once '../models/fleet_model.php';
 require_once '../models/route_model.php';
+require_once '../models/notification_model.php';
 
 session_start();
 require_role('driver');
@@ -40,6 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stats = get_trip_stats($conn, $trip['trip_id']);
         add_log($conn, $driver_id, 'trip_end', 'Ended trip #' . $trip['trip_id'] . ' · ' . $stats['paid'] . ' paid fares · ' . peso($stats['collected']));
         flash('success', 'Trip ended. ' . (int) $stats['paid'] . ' paid fares, ' . peso($stats['collected']) . ' collected.');
+        add_notification($conn, $driver_id, 'trip_summary', 'Trip ended · ' . $trip['unit_code'],
+            (int) $stats['paid'] . ' paid fares, ' . peso($stats['collected']) . ' collected on ' . $trip['route_name'] . '.', 'driver_earnings.php');
     }
 
     go('driver_home.php');

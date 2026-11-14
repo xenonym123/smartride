@@ -9,6 +9,8 @@ require_once '../models/fare_model.php';
 require_once '../models/fleet_model.php';
 require_once '../includes/geoapify.php';
 require_once '../models/route_model.php';
+require_once '../models/trip_model.php';
+require_once '../models/notification_model.php';
 
 session_start();
 require_role('admin');
@@ -46,6 +48,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = input('status');
         if ($unit && in_array($status, ['active', 'breakdown', 'offline'], true)) {
             set_unit_status($conn, $unit['unit_id'], $status);
+            // The driver out on this unit right now hears about it.
+            $driver_id = unit_driver_id($conn, (int) $unit['unit_id']);
+            if ($driver_id && $status !== $unit['status']) {
+                $why = ['active' => 'is active again', 'breakdown' => 'was marked broken down', 'offline' => 'was taken offline'];
+                add_notification($conn, $driver_id, 'unit_status', $unit['unit_code'] . ' ' . $why[$status],
+                    $status === 'active' ? 'You can keep taking fares.' : 'Set by the operator. Talk to your operator about the trip.', 'driver_home.php');
+            }
             add_log($conn, $admin_id, 'unit_status', $unit['unit_code'] . ' set to ' . $status);
             flash('success', $unit['unit_code'] . ' is now marked ' . $status . '.');
         }
@@ -70,6 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fare = (float) input('base_fare');
         if ($route && $fare >= 1 && $fare <= 200) {
             update_route_fare($conn, $route['route_id'], $fare);
+            notify_role($conn, 'driver', 'fare_changed', 'Fare on line ' . (int) $route['route_id'] . ' is now ' . peso($fare),
+                $route['route_name'] . '. New scans charge the new fare.', 'driver_routes.php');
             add_log($conn, $admin_id, 'fare_changed', $route['route_name'] . ' fare set to ' . peso($fare));
             flash('success', $route['route_name'] . ' now costs ' . peso($fare) . '.');
         } else {

@@ -10,6 +10,7 @@ $log_labels = [
     'fare_blocked'     => ['alert', 'amber', 'Scan blocked'],
     'trip_start'       => ['play', '', 'Trip started'],
     'trip_end'         => ['stop', '', 'Trip ended'],
+    'got_off'          => ['check', '', 'Got off'],
     'unit_status'      => ['bus', 'amber', 'Unit status'],
     'unit_added'       => ['bus', 'green', 'Unit added'],
     'route_added'      => ['route', 'green', 'Route added'],

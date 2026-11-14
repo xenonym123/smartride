@@ -117,7 +117,7 @@ function get_current_ride($conn, $wallet_id)
                             JOIN routes r ON r.route_id = t.route_id
                             JOIN jeepneys j ON j.unit_id = t.unit_id
                             LEFT JOIN route_stops s ON s.stop_id = f.dest_stop_id
-                            WHERE f.wallet_id = ? AND f.status = 'paid' AND t.ended_at IS NULL
+                            WHERE f.wallet_id = ? AND f.status = 'paid' AND t.ended_at IS NULL AND f.alighted_at IS NULL
                             ORDER BY f.scanned_at DESC LIMIT 1");
     $stmt->bind_param("i", $wallet_id);
     $stmt->execute();
@@ -144,10 +144,27 @@ function get_waiting_arrivals($conn, $trip_id)
                             FROM fare_transactions f
                             JOIN wallets w ON w.wallet_id = f.wallet_id
                             JOIN route_stops s ON s.stop_id = f.dest_stop_id
-                            WHERE f.trip_id = ? AND f.status = 'paid' AND f.arrival_sent_at IS NULL");
+                            WHERE f.trip_id = ? AND f.status = 'paid' AND f.arrival_sent_at IS NULL AND f.alighted_at IS NULL");
     $stmt->bind_param("i", $trip_id);
     $stmt->execute();
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+// The passenger tapped "I got off": the ride is over. Only their own, only once.
+// Returns the trip id, or 0 if there was nothing to close.
+function mark_got_off($conn, $txn_id, $wallet_id)
+{
+    $stmt = $conn->prepare("UPDATE fare_transactions SET alighted_at = NOW()
+                            WHERE txn_id = ? AND wallet_id = ? AND status = 'paid' AND alighted_at IS NULL");
+    $stmt->bind_param("ii", $txn_id, $wallet_id);
+    $stmt->execute();
+    if ($stmt->affected_rows !== 1) {
+        return 0;
+    }
+    $stmt = $conn->prepare("SELECT trip_id FROM fare_transactions WHERE txn_id = ?");
+    $stmt->bind_param("i", $txn_id);
+    $stmt->execute();
+    return (int) $stmt->get_result()->fetch_assoc()['trip_id'];
 }
 
 // Marks the "arriving" alert as sent. Returns false if it was already sent (so it goes out once).

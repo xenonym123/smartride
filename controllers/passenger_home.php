@@ -8,6 +8,8 @@ require_once '../models/fare_model.php';
 require_once '../models/fleet_model.php';
 require_once '../models/route_model.php';
 require_once '../models/user_model.php';
+require_once '../models/trip_model.php';
+require_once '../models/notification_model.php';
 
 session_start();
 require_role('passenger');
@@ -17,9 +19,27 @@ $wallet = get_my_wallet($conn, $user_id);
 
 // "Where are you getting off?" When the jeepney gets near that landmark, the driver's GPS
 // ping triggers an "arriving" text (PhilSMS) and push. See api_gps.php.
+// "I got off" ends the ride: no more alerts, and the jeepney's on-board count goes down by one
+// (a paid QR scan added them, so tapping this takes them off again).
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf('passenger_home.php');
     $ride = get_current_ride($conn, $wallet['wallet_id']);
+    if (input('action') === 'got_off') {
+        $trip_id = $ride ? mark_got_off($conn, $ride['txn_id'], $wallet['wallet_id']) : 0;
+        if ($trip_id) {
+            change_passenger_count($conn, $trip_id, -1);
+            // Tell the driver, with the new count.
+            $driver_id = trip_driver_id($conn, $trip_id);
+            $count = get_passenger_count($conn, $trip_id);
+            if ($driver_id) {
+                add_notification($conn, $driver_id, 'rider_off', first_name($_SESSION['full_name']) . ' got off' . ($ride['dest_name'] ? ' at ' . $ride['dest_name'] : ''),
+                    'On board now: ' . (int) $count['onboard'] . '. The count went down by itself.', 'driver_count.php');
+            }
+            add_log($conn, $user_id, 'got_off', 'Got off ' . $ride['unit_code'] . ($ride['dest_name'] ? ' at ' . $ride['dest_name'] : ''));
+            flash('success', 'Thanks for riding' . ($ride['dest_name'] ? '. You got off at ' . $ride['dest_name'] : '') . '.');
+        }
+        go('passenger_home.php');
+    }
     if ($ride && set_ride_destination($conn, $ride['txn_id'], $wallet['wallet_id'], (int) input('stop_id'))) {
         flash('success', "Got it. We'll let you know when you're close.");
     } else {
