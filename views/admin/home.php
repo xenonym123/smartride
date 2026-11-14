@@ -16,7 +16,7 @@
     <div class="card">
         <div class="head"><h3>Live passenger count</h3><a class="btn sm ghost" href="admin_tracking.php"><?= icon('map') ?>Map</a></div>
         <div class="bars">
-            <?php foreach ($fleet as $u): ?>
+            <?php foreach ($fleet as $u): if ($u['simulated']) { continue; } ?>
                 <?php if ($u['state'] === 'on_trip'): ?>
                     <?php $pct = round($u['onboard'] / max(1, $u['capacity']) * 100); ?>
                     <div class="bar-row"><b><?= e($u['unit_code']) ?></b><div class="bar" title="<?= e($u['route_name']) ?>"><i class="<?= $pct >= 100 ? 'full' : '' ?>" style="width:<?= min(100, $pct) ?>%"></i></div><span class="num"><?= (int) $u['onboard'] ?>/<?= (int) $u['capacity'] ?></span></div>
@@ -25,7 +25,7 @@
                 <?php endif; ?>
             <?php endforeach; ?>
         </div>
-        <p class="hint" style="margin-top:16px"><?= $riding ?> people riding right now across <?= $on_road ?> units.</p>
+        <p class="hint" style="margin-top:16px"><?= $riding ?> people riding right now across <?= $on_road ?> units, counting the <?= count(array_filter($fleet, function ($u) { return $u['simulated']; })) ?> demo units on the 24 lines (see the map).</p>
     </div>
     <div class="card">
         <h3>Today's totals</h3>

@@ -20,25 +20,34 @@
 
 ---
 
-## 1. Geoapify: route landmarks and bus routes
+## 1. Jeepney lines (Bacolod LPTRP) and Geoapify
 
-Every route now has **landmarks from A to B**. For example, Libertad – SM Bacolod is:
+**Track a Jeepney** shows Bacolod's **24 jeepney lines** from the Local Public Transport Route Plan (LPTRP), each in its own color, like lugar.ph:
 
-> **A** Libertad Public Market → Bacolod City Hall → Bacolod Public Plaza → San Sebastian Cathedral → **B** SM City Bacolod
+- At first every line is on the map, and the panel lists them **closest to you first** ("10 m from you").
+- **Pick a line** and only that line, its landmarks (A → B) and **its jeepneys** stay on the map. Pick another and the first one disappears. The address remembers it (`#line-6`), so you can share a link to a line.
+- The **blue dot** is you (the phone's GPS, followed as you move). If GPS is blocked, Geoapify's IP location gives a rough spot.
+- **Where to get on:** SmartRide finds the closest point of the picked line and Geoapify draws the walking route there.
 
 | What | File | Line |
 | --- | --- | --- |
+| The 24 lines, landmarks and road lines (seed data) | `database/smartride_db.sql` | `-- routes: the 24 jeepney lines` |
+| JSON: every line with color, landmarks, road line | `controllers/api_routes.php` | 13 |
+| The line-picker map (all lines → one line + its jeepneys, your location) | `assets/js/app.js` | 128 |
+| Demo jeepneys that drive their line by themselves | `models/fleet_model.php` | 104 |
+| Closest point of a line to you | `models/fleet_model.php` | 187 |
+| **Geoapify walking route** to that point | `controllers/api_geo.php` | 54, 78 |
 | Key goes on every request as `?apiKey=` | `includes/geoapify.php` | 21–23 |
-| **Forward geocoding:** landmark name → position, only within 15 km of Bacolod | `includes/geoapify.php` | 123, 127 |
-| **Routing, `mode=bus`:** A → every landmark → B, following roads | `includes/geoapify.php` | 140, 146 |
-| Route line saved in `route_paths`, so each route is fetched once | `includes/geoapify.php` | 164, 166 |
-| JSON for the maps: every route with landmarks and line | `controllers/api_routes.php` | 14 |
-| Lines and A/B markers drawn on the map | `assets/js/app.js` | 259 |
-| Passenger Track page: routes on the map, plus a list | `views/passenger/track.php` | 103 |
-| Admin: add a landmark (Geoapify finds it by name), remove one, "Update from Geoapify" | `controllers/admin_tracking.php` | 79, 91, 115 |
-| Reverse geocoding (street names), walking route, IP location | `includes/geoapify.php` | 28, 53, 82 |
+| **Forward geocoding:** landmark name → position, only within 15 km of Bacolod | `includes/geoapify.php` | 123 |
+| **Routing, `mode=bus`:** for a route the admin adds, A → every landmark → B | `includes/geoapify.php` | 140, 164 |
+| Admin: add a landmark (Geoapify finds it by name), remove one, "Update from Geoapify" | `controllers/admin_tracking.php` | 82, 110, 118 |
+| Reverse geocoding (street names), IP location | `includes/geoapify.php` | 28, 82 |
 
-**About the starting positions.** The demo landmarks start with approximate positions. The first time a map loads with your key, Geoapify looks every landmark up **by name** and saves the real position (`geocoded = 1`). Then it asks for the bus route between them. To redo it, click Admin → Jeepney Tracking → **Update from Geoapify**.
+**Where the lines come from.** The road lines are from the [DASIG Bacolod route pack](https://github.com/andrewnyu/dasig-offline-transit), built from OpenStreetMap. Lines 1–3, 5–11 and 16 are **mapped street by street** on OpenStreetMap (`source = 'osm'`). The other 13 are **traced from the LPTRP landmarks** along OpenStreetMap roads (`source = 'lptrp'`), so they're a best estimate. Riders should still check the signboard. Each landmark sits on its line's road. Route data © OpenStreetMap contributors, under the Open Database License (ODbL); the credit is on the map and on the page.
+
+**Demo jeepneys.** Each line has 2 demo units (`jeepneys.simulated = 1`, 48 in total) that drive their line at 15 km/h, so the map is alive during a demo. They have no driver and take no fares, and the panel labels them "demo unit". The 5 real units (BCN 105–109) move only when a driver's phone sends GPS.
+
+**Geoapify and the traced lines.** The 24 traced lines never call Geoapify routing. Adding or removing a landmark on one keeps its road line. A route the admin **adds** gets its landmarks found by name and its bus road line from Geoapify, as before.
 
 ---
 
@@ -63,7 +72,7 @@ Every route now has **landmarks from A to B**. For example, Libertad – SM Baco
 **How "arriving" works:**
 
 1. The passenger pays (QR scan).
-2. Home shows "You're riding BCN 105 · Libertad – SM Bacolod. Where are you getting off?" They pick **SM City Bacolod**.
+2. Home shows "You're riding BCN 105 · Banago – Libertad Loop. Where are you getting off?" They pick **Libertad Public Market**.
 3. The driver's phone sends its GPS every 20 seconds. When the jeepney is within **300 m** (`ARRIVAL_RADIUS_M`, `config.php` line 51), the passenger gets: *"SmartRide: Arriving at SM City Bacolod. BCN 105 is about 250 m away. Get ready to get off."*
 
 **Sender ID.** PhilSMS only sends from a sender name approved for your account (dashboard.philsms.com → Sending → **Sender ID** → Request for new one). Until one is approved, set `PHILSMS_SENDER_ID` to `''` and PhilSMS uses the account's default, if it has one. If the Test button says *Sender ID "…" is not authorized*, that's this.
@@ -143,7 +152,7 @@ The same as before: `includes/onesignal.php` sends the push at line 30, and the 
 
 1. **Admin** → Analytics → **Connected APIs**: five tags. Press **Test** on PhilSMS and Gmail and you get a text and an email.
 2. **Passenger** `juandc` → Profile → **Alerts** → turn on *Text me* and *Email me*. Use your own phone and email on that account.
-3. **Track a Jeepney:** the four routes with their landmarks A → B and bus road lines from Geoapify.
+3. **Track a Jeepney:** the 24 lines, closest first. Pick a line: only it and its jeepneys show, plus where to get on (Geoapify walking route). Pick another line and the first one goes away.
 4. **Reload → Maya Checkout ₱100.** Pay on Maya's sandbox page with the test Visa. Back on SmartRide it says "Paid", and an email receipt arrives.
 5. **Driver** `ramon` scans juandc's QR → "Fare paid" text + email.
 6. juandc's Home → **Where are you getting off?** → pick the last landmark (B).

@@ -2,6 +2,7 @@
 // JSON for the Geoapify features on the Track a Jeepney page.
 //   ?action=where&lat=..&lng=..             street name for the passenger's spot
 //   ?action=route&lat=..&lng=..&unit=BCN 105  walking route to that jeepney
+//   ?action=line&lat=..&lng=..&route=5        where to board line 5 (closest point) + walking route there
 //   ?action=ip                              rough location when GPS is blocked
 require_once '../config/db_connect.php';
 require_once '../includes/functions.php';
@@ -47,6 +48,43 @@ try {
             'minutes' => max(1, (int) round($route['seconds'] / 60)),
             'points'  => $route['points'],
             'demo'    => $route['demo'],
+        ]);
+    }
+
+    if ($action === 'line') {
+        if (!$valid_point) {
+            json_out(['ok' => false, 'message' => 'That location is not on the map.'], 400);
+        }
+        $route_id = (int) input('route');
+        if (!get_route($conn, $route_id)) {
+            json_out(['ok' => false, 'message' => 'No such line.'], 404);
+        }
+        $path = route_path_for($conn, $route_id);
+        if (count($path['points']) < 2) {
+            json_out(['ok' => false, 'message' => 'That line has no road line yet.'], 404);
+        }
+        // The closest point on the line is where to wait for the jeepney.
+        $board = nearest_point_on_line($path['points'], $lat, $lng);
+        // Name it after the closest landmark on the line.
+        $landmark = '';
+        $best = null;
+        foreach (get_route_stops($conn, $route_id) as $stop) {
+            $d = line_km($board[0], $board[1], (float) $stop['latitude'], (float) $stop['longitude']);
+            if ($best === null || $d < $best) {
+                $best = $d;
+                $landmark = $stop['name'];
+            }
+        }
+        $walk = geoapify_walk_route($lat, $lng, $board[0], $board[1]);
+        json_out([
+            'ok'       => true,
+            'board'    => ['lat' => $board[0], 'lng' => $board[1], 'meters' => $board[2]],
+            'landmark' => $landmark,
+            'near_km'  => round($best, 1),
+            'meters'   => $walk['meters'],
+            'minutes'  => max(1, (int) round($walk['seconds'] / 60)),
+            'points'   => $walk['points'],
+            'demo'     => $walk['demo'],
         ]);
     }
 

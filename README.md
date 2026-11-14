@@ -2,7 +2,7 @@
 
 This used to be 1TAP. It's the same e-jeepney system for Bacolod: QR fares, a live passenger count, GPS tracking. Now it connects to five outside APIs, each with its own key:
 
-1. **Geoapify:** landmarks from A to B on every route, bus road lines, street names, the walking route to the nearest jeepney, and location by IP.
+1. **Geoapify:** the walking route to where you get on a line, street names, location by IP, and landmarks + bus road lines for routes the admin adds.
 2. **Maya Checkout (sandbox):** wallet reloads with a card or Maya wallet. Test only, no real money.
 3. **PhilSMS:** a text when your fare is paid, and when your jeepney is close to the landmark where you get off.
 4. **Gmail API:** forgot-password emails and payment receipts.
@@ -66,7 +66,7 @@ The full version is in `APIS.md`. The short one:
 
 1. **Admin** → Analytics → Connected APIs → **Test** the SMS and the email.
 2. **Passenger** `juandc` → Profile → Alerts → turn on *Text me* and *Email me*. Use your own phone and email on that account.
-3. **Track a Jeepney:** see each route's landmarks A → B and the bus road lines. **Use my location** shows the nearest jeepney.
+3. **Track a Jeepney:** Bacolod's 24 LPTRP jeepney lines, closest to you first. Pick a line and only that line and its jeepneys show; pick another and the first disappears. The blue dot is you.
 4. **Reload → Maya Checkout.** Pay with the sandbox Visa `4123 4501 3100 1381` (12/2030, CVV 123, password `mctest1`).
 5. **Driver** `ramon` scans the passenger's QR → "Fare paid" text and email.
 6. Passenger Home → **Where are you getting off?** → pick a landmark. Driver Home → **GPS simulator** → *Drive here* until the "Arriving at …" text comes.
@@ -131,6 +131,9 @@ The database has these tables for the new features: `route_stops`, `route_paths`
 - `RELOAD_MIN` / `RELOAD_MAX`: ₱20 to ₱5,000.
 
 ## Notes
+
+- **Jeepney lines:** the 24 lines of Bacolod's Local Public Transport Route Plan, traced on the roads. Road lines © OpenStreetMap contributors (ODbL), from the [DASIG Bacolod route pack](https://github.com/andrewnyu/dasig-offline-transit). Lines 1–3, 5–11 and 16 are mapped street by street; the rest are traced from the LPTRP landmarks. Details in `APIS.md`.
+- **Demo jeepneys:** each line has 2 demo units that drive it by themselves (48 in total), so the map is alive in a demo. They take no fares. The real units are BCN 105–109.
 
 - Cash reloads (partner store, kiosk) are approved right away in the demo.
 - The onboard camera count is still simulated with the **Someone got on / got off** buttons.

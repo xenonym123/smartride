@@ -62,9 +62,13 @@ function update_stop_position($conn, $stop_id, $lat, $lng)
     $stmt->execute();
 }
 
-// "Look these up again on Geoapify" (admin button).
+// "Look these up again on Geoapify" (admin button). Skips lines traced on the roads.
 function reset_route_geocoding($conn, $route_id)
 {
+    $saved = get_saved_route_path($conn, $route_id);
+    if ($saved && in_array($saved['source'], ['osm', 'lptrp'], true)) {
+        return;
+    }
     $stmt = $conn->prepare("UPDATE route_stops SET geocoded = 0 WHERE route_id = ?");
     $stmt->bind_param("i", $route_id);
     $stmt->execute();
@@ -91,9 +95,11 @@ function save_route_path($conn, $route_id, $points, $meters, $seconds, $source)
     $stmt->execute();
 }
 
+// Only for lines drawn by Geoapify or as straight lines. A line traced on the roads
+// ('osm' / 'lptrp') is kept: changing its landmarks doesn't change the road it drives.
 function clear_route_path($conn, $route_id)
 {
-    $stmt = $conn->prepare("DELETE FROM route_paths WHERE route_id = ?");
+    $stmt = $conn->prepare("DELETE FROM route_paths WHERE route_id = ? AND source IN ('geoapify', 'straight')");
     $stmt->bind_param("i", $route_id);
     $stmt->execute();
 }
