@@ -140,6 +140,7 @@ CREATE TABLE fare_transactions (
   scanned_at  DATETIME NOT NULL,
   dest_stop_id    INT UNSIGNED NULL,              -- where the passenger is getting off
   arrival_sent_at DATETIME NULL,                  -- when the "arriving" SMS went out
+  alighted_at     DATETIME NULL,                  -- when the passenger tapped "I got off" (the ride is over)
   PRIMARY KEY (txn_id),
   KEY idx_fares_wallet (wallet_id, scanned_at),
   KEY idx_fares_trip (trip_id),

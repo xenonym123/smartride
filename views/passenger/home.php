@@ -7,7 +7,7 @@
 <div class="card ride-card">
     <div class="head"><h3 style="margin:0"><?= icon('bus') ?> You're riding <?= e($current_ride['unit_code']) ?> · <?= e($current_ride['route_name']) ?></h3></div>
     <?php if ($current_ride['dest_name'] && $current_ride['arrival_sent_at']): ?>
-        <p>You're almost at <b><?= e($current_ride['dest_name']) ?></b>. Get ready to get off.</p>
+        <p>You're almost at <b><?= e($current_ride['dest_name']) ?></b>. Get ready to get off, then tap <b>I got off</b>.</p>
     <?php elseif ($current_ride['dest_name']): ?>
         <p>Getting off at <b><?= e($current_ride['dest_name']) ?></b>. When the jeepney is within <?= ARRIVAL_RADIUS_M ?> m,
             <?php if ($me['sms_alerts']): ?>we'll text <?= e($me['phone']) ?> (PhilSMS) and send a push.<?php else: ?>you'll get a push. Turn on <a class="linkbtn" href="passenger_profile.php">Text me</a> to get an SMS too.<?php endif; ?></p>
@@ -23,6 +23,10 @@
             <?php endforeach; ?>
         </select>
         <button class="btn sm" type="submit"><?= icon('pin') ?><?= $current_ride['dest_name'] ? 'Change drop-off' : 'Tell me when we\'re close' ?></button>
+    </form>
+    <form method="post" action="passenger_home.php" style="margin-top:10px" data-confirm="Did you get off <?= e($current_ride['unit_code']) ?>?">
+        <?= csrf_field() ?><input type="hidden" name="action" value="got_off">
+        <button class="btn sm <?= $current_ride['arrival_sent_at'] ? '' : 'ghost' ?>" type="submit"><?= icon('check') ?>I got off</button>
     </form>
 </div>
 <?php endif; ?>
