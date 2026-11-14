@@ -120,15 +120,6 @@
      * GEOLOCATION API (passenger side). Asks the browser where the passenger is.
      * Calls onFound({lat, lng, accuracy}) or onError(message).
      */
-    // The street map behind every map: CARTO's light "Positron" style (OpenStreetMap data),
-    // served from a fast CDN, with sharp tiles on phones. Pale, so the jeepney lines stand out.
-    streetMap(map, extraCredit) {
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        subdomains: 'abcd', maxZoom: 20, detectRetina: false,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' + extraCredit,
-      }).addTo(map);
-    },
-
     // ---------- Jeepney lines map (Track a Jeepney, admin Jeepney Tracking) ----------
     // At first every line is drawn in its own color. Pick a line and only that line, its
     // landmarks and its jeepneys stay on the map; pick another and the first one goes away.
@@ -142,7 +133,9 @@
       el.innerHTML = '';
       const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
       const map = L.map(el, { zoomControl: true }).setView([10.665, 122.965], 13);
-      SMARTRIDE.streetMap(map, ' · Routes: OSM (ODbL) via DASIG, Bacolod LPTRP');
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap contributors · Routes: OSM (ODbL) via DASIG, Bacolod LPTRP',
+      }).addTo(map);
       const busSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg>';
       const SOURCE = { osm: 'Mapped street by street (OpenStreetMap)', lptrp: 'Traced from the LPTRP landmarks', geoapify: 'Road line from Geoapify', straight: 'Demo mode · straight lines' };
       const STATE = { on_trip: 'On the road', parked: 'Parked', breakdown: 'Breakdown', offline: 'Offline' };
@@ -542,7 +535,9 @@
       }
       el.innerHTML = '';
       const map = L.map(el, { scrollWheelZoom: false }).setView([10.672, 122.958], 13);
-      SMARTRIDE.streetMap(map, '');
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18, attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
       const colors = { on_trip: '#12A150', parked: '#5B52EE', breakdown: '#E0343F', offline: '#9A9CB4' };
       const busSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg>';
       const markers = {};
