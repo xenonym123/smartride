@@ -9,12 +9,24 @@ function record_fare($conn, $wallet_id, $trip_id, $amount, $status)
     $stmt->execute();
 }
 
-function already_paid($conn, $wallet_id, $trip_id)
+// The passenger's ride on this trip that hasn't ended yet (paid, not "got off"), or null.
+// A ride ends when they tap "I got off". Riding the same jeepney again after that is a new fare.
+function open_fare_on_trip($conn, $wallet_id, $trip_id)
 {
-    $stmt = $conn->prepare("SELECT txn_id FROM fare_transactions WHERE wallet_id = ? AND trip_id = ? AND status = 'paid'");
+    $stmt = $conn->prepare("SELECT txn_id, scanned_at FROM fare_transactions
+                            WHERE wallet_id = ? AND trip_id = ? AND status = 'paid' AND alighted_at IS NULL
+                            ORDER BY txn_id DESC LIMIT 1");
     $stmt->bind_param("ii", $wallet_id, $trip_id);
     $stmt->execute();
-    return $stmt->get_result()->num_rows > 0;
+    return $stmt->get_result()->fetch_assoc();
+}
+
+// Ends a ride the passenger never closed (they got off without tapping "I got off").
+function close_fare($conn, $txn_id)
+{
+    $stmt = $conn->prepare("UPDATE fare_transactions SET alighted_at = NOW() WHERE txn_id = ? AND alighted_at IS NULL");
+    $stmt->bind_param("i", $txn_id);
+    $stmt->execute();
 }
 
 // A passenger's ride history.

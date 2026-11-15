@@ -2,7 +2,7 @@
 // JSON: the jeepney's QR scanner sends each scanned code here.
 // Takes the fare from the passenger's wallet, or blocks it when:
 //   - the QR is fake, expired or frozen
-//   - the passenger already paid on this trip
+//   - the passenger already paid on this trip and is still riding (the same QR shown twice)
 //   - the unit is full
 //   - the balance is too low
 // Every blocked scan is saved too, with the reason.
@@ -43,9 +43,19 @@ $name = first_name($wallet['full_name']);
 $wallet_id = (int) $wallet['wallet_id'];
 $count = get_passenger_count($conn, $trip_id);
 
-// 2. Paid already on this trip (the same QR shown twice). Not saved again.
-if (already_paid($conn, $wallet_id, $trip_id)) {
-    json_out(['ok' => false, 'result' => 'duplicate', 'message' => $name . ' already paid on this trip.'] + get_live_data($conn, $trip));
+// 2. Still riding on a fare they paid on this trip.
+//    - Scanned again within RIDE_AGAIN_AFTER_MIN minutes: the same QR shown twice. Not charged, not saved.
+//    - Later than that: they got off without tapping "I got off" and came back. That old ride
+//      is closed and this is a new ride with a new fare.
+//    After "I got off" there's no open fare, so riding again is simply a new fare.
+$open = open_fare_on_trip($conn, $wallet_id, $trip_id);
+if ($open) {
+    $minutes = (int) floor((time() - strtotime($open['scanned_at'])) / 60);
+    if ($minutes < RIDE_AGAIN_AFTER_MIN) {
+        json_out(['ok' => false, 'result' => 'duplicate',
+                  'message' => $name . ' already paid on this trip' . ($minutes > 0 ? ' ' . $minutes . ' min ago' : '') . '.'] + get_live_data($conn, $trip));
+    }
+    close_fare($conn, (int) $open['txn_id']);
 }
 
 $blocked = '';

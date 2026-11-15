@@ -19,7 +19,12 @@ define('PRESENTATION_TOOLS', true);
 define('QR_WINDOW', 30);
 
 // Wrong passwords allowed per username in 15 minutes before sign-in is locked for a while.
-define('LOGIN_MAX_TRIES', 5);     // seconds before a ride QR changes
+define('LOGIN_MAX_TRIES', 5);
+
+// A second scan of the same passenger on the same trip within this many minutes is a mistake
+// ("already paid"). Later than that, they got off and came back: a new ride, a new fare.
+// After they tap "I got off", riding again is a new fare right away.
+define('RIDE_AGAIN_AFTER_MIN', 10);     // seconds before a ride QR changes
 define('RELOAD_MIN', 20);    // smallest reload, in pesos
 define('RELOAD_MAX', 5000);  // biggest reload, in pesos
 
