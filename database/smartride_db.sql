@@ -201,7 +201,7 @@ CREATE TABLE payments (
   payment_id    INT UNSIGNED NOT NULL AUTO_INCREMENT,
   wallet_id     INT UNSIGNED NOT NULL,
   amount        DECIMAL(10,2) NOT NULL,
-  provider      ENUM('maya','demo') NOT NULL,
+  provider      ENUM('maya','demo','store','kiosk') NOT NULL,  -- store / kiosk = cash, waits for an admin to confirm
   reference_no  VARCHAR(36) NOT NULL,             -- our requestReferenceNumber, e.g. SR-15-a1b2c3
   checkout_id   VARCHAR(64) NULL,                 -- Maya's checkoutId (= paymentId)
   checkout_url  VARCHAR(500) NULL,                -- Maya's payment page

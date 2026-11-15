@@ -25,9 +25,20 @@
             <?php if (isset(reload_methods()['maya'])): ?>
                 <p class="hint"><b>Maya Checkout</b> opens Maya's payment page, where you pay with a card or your Maya wallet. The money lands once Maya confirms it.</p>
             <?php endif; ?>
+            <p class="hint"><b>Cash</b> gives you a reference to show at the partner store or kiosk. The money lands once the cash is confirmed.</p>
         </form>
     </div>
     <div class="card">
+        <?php if ($waiting): ?>
+            <h3>Waiting for cash</h3>
+            <p class="hint" style="margin-top:-6px">Show the reference at the counter when you pay. The money lands here once the cash is confirmed.</p>
+            <?php foreach ($waiting as $c): ?>
+                <div class="list-row"><div class="who"><b><?= peso($c['amount']) ?> · <?= e($c['reference_no']) ?></b>
+                    <span><?= $c['provider'] === 'kiosk' ? 'Kiosk' : 'Partner store' ?> · until <?= e(date('M j, g:i A', strtotime($c['expires_at']))) ?></span></div>
+                    <span class="pill pill-amber">Waiting</span></div>
+            <?php endforeach; ?>
+            <div style="height:18px"></div>
+        <?php endif; ?>
         <h3>Reload history</h3>
         <?php if (!$history): ?><p class="empty">No reloads yet.</p><?php endif; ?>
         <?php foreach ($history as $h): ?>

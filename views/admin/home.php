@@ -1,6 +1,22 @@
 <?php include '../views/partials/dashboard_top.php'; ?>
 <?php page_head('Analytics', 'System performance, fares and fleet at a glance', '<span class="pill pill-brand">' . icon('clock') . 'Today · ' . date('g:i A') . '</span>'); ?>
 <?php show_flash(); ?>
+<?php if ($cash_waiting): ?>
+<div class="card" id="cash" style="margin-bottom:20px">
+    <h3>Cash reloads to confirm <span class="pill pill-amber"><?= count($cash_waiting) ?></span></h3>
+    <p class="hint" style="margin-top:-6px">Confirm only after the cash is in hand. The wallet is credited once.</p>
+    <?php foreach ($cash_waiting as $c): ?>
+        <div class="list-row">
+            <div class="who" style="flex:1"><b><?= peso($c['amount']) ?> · <?= e($c['reference_no']) ?></b>
+                <span><?= e($c['full_name']) ?> (<?= e($c['username']) ?>) · <?= $c['provider'] === 'kiosk' ? 'Kiosk' : 'Partner store' ?> · <?= e(date('M j, g:i A', strtotime($c['created_at']))) ?></span></div>
+            <form method="post" action="admin_home.php"><?= csrf_field() ?><input type="hidden" name="payment_id" value="<?= (int) $c['payment_id'] ?>">
+                <button class="btn sm" name="action" value="approve_cash" type="submit"><?= icon('check') ?>Cash received</button>
+                <button class="btn sm ghost" name="action" value="reject_cash" type="submit" data-confirm="Reject <?= e($c['reference_no']) ?>? Nothing will be added.">Reject</button>
+            </form>
+        </div>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
 <div class="row cols-4">
     <div class="card stat-card"><div class="label">Units on the road<?= icon('bus') ?></div><div class="value"><?= $on_road ?> <small>of <?= count($fleet) ?></small></div>
         <div class="sub"><?= $breakdowns ?> breakdown · <?= $offline ?> offline</div></div>

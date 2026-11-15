@@ -5,7 +5,7 @@
 <?php
 $notif_icons = [
     'fare_paid' => ['check', 'green'], 'fare_blocked' => ['alert', 'amber'], 'low_balance' => ['wallet', 'red'],
-    'reload' => ['wallet', 'green'], 'unit_full' => ['users', 'amber'], 'qr' => ['qr', ''], 'qr_misuse' => ['shield', 'red'],
+    'reload' => ['wallet', 'green'], 'cash_request' => ['wallet', 'amber'], 'reload_rejected' => ['alert', 'red'], 'unit_full' => ['users', 'amber'], 'qr' => ['qr', ''], 'qr_misuse' => ['shield', 'red'],
     'new_passenger' => ['user', 'green'], 'welcome' => ['bell', ''], 'arriving' => ['pin', 'green'],
     'stop_ahead' => ['pin', 'amber'], 'rider_off' => ['users', ''], 'trip_summary' => ['receipt', 'green'],
     'unit_status' => ['bus', 'red'], 'fare_changed' => ['peso', 'amber'],

@@ -9,6 +9,7 @@ require_once '../models/fare_model.php';
 require_once '../models/fleet_model.php';
 require_once '../models/notification_model.php';
 require_once '../includes/maya.php';
+require_once '../models/payment_model.php';
 require_once '../includes/geoapify.php';
 
 session_start();
@@ -20,6 +21,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf('admin_home.php');
     $me = get_user_by_id($conn, (int) $_SESSION['user_id']);
     $test = input('action');
+
+    // Cash reloads: the admin confirms the passenger really paid at the counter.
+    if ($test === 'approve_cash' || $test === 'reject_cash') {
+        $cash = get_cash_request($conn, (int) input('payment_id'));
+        if (!$cash || $cash['status'] !== 'pending') {
+            flash('error', 'That cash reload was already handled or has expired.');
+        } elseif ($test === 'approve_cash') {
+            complete_payment($conn, $cash); // credits the wallet once, even if clicked twice
+            add_log($conn, (int) $_SESSION['user_id'], 'cash_approved', 'Confirmed cash reload ' . $cash['reference_no'] . ' (' . peso($cash['amount']) . ')');
+            flash('success', 'Confirmed ' . $cash['reference_no'] . ': ' . peso($cash['amount']) . ' added to the wallet.');
+        } else {
+            set_payment_status($conn, $cash['payment_id'], 'cancelled');
+            $wallet = get_wallet($conn, (int) $cash['wallet_id']);
+            add_notification($conn, (int) $wallet['user_id'], 'reload_rejected', 'Cash reload not confirmed',
+                peso($cash['amount']) . ' (' . $cash['reference_no'] . ') wasn\'t received, so nothing was added.', 'passenger_reload.php');
+            add_log($conn, (int) $_SESSION['user_id'], 'cash_rejected', 'Rejected cash reload ' . $cash['reference_no']);
+            flash('success', 'Rejected ' . $cash['reference_no'] . '. The passenger was told.');
+        }
+        go('admin_home.php#cash');
+    }
 
     if ($test === 'test_push') {
         add_notification($conn, (int) $me['user_id'], 'welcome', 'Test notification',
@@ -92,4 +113,5 @@ $apis = [
 
 $title = 'Analytics';
 $current_page = 'admin_home.php';
+$cash_waiting = get_waiting_cash_requests($conn);
 include '../views/admin/home.php';

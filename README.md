@@ -23,6 +23,59 @@ If your MySQL root user has a password, put it in `config/config.php`.
 
 Re-import the SQL file the day before you present. The demo trips and fares are dated from when you import, so "today" stays today.
 
+## Put it online (HelioHost)
+
+### Before you upload
+
+These matter because the site will be public, and this GitHub repo is public too.
+
+1. **Passwords.** The demo passwords are written in this README, and the password hashes are in `smartride_db.sql`, so anyone can read them. After importing (step 5 below), log in as **admin**, open **User Management**, and give `admin` and every account you'll use (for example `juandc`, `ramon`) a new password. Then switch off every other account in phpMyAdmin → SQL:
+   ```sql
+   UPDATE users SET status = 'inactive' WHERE username NOT IN ('admin', 'juandc', 'ramon');
+   ```
+2. **`PRESENTATION_TOOLS`** in `config/config.php`: keep it `true` for the presentation (simulated jeepneys, "Move to a landmark"). Set it to `false` as soon as real riders use the site.
+3. **`APP_DEBUG`** stays `false`, so visitors never see error details.
+4. **Maya** uses the public sandbox keys, so no real money moves. That's fine for a school project. Real payments need your own Maya business account.
+
+What's already in place: login limit (5 wrong passwords = 15-minute lock), cash reloads only count after an admin confirms them, every form has a CSRF token, every SQL query uses `bind_param`, every page escapes what it shows, passwords are hashed, the session cookie is `httponly` (and `secure` on https), `config`, `includes`, `models`, `views` and `database` are blocked from the web, and `README.md`, `.sql` files and folder listings are never served.
+
+### Steps
+
+1. **Log in** to HelioHost and open **Plesk**.
+2. **PHP version:** Websites & Domains → your domain → **PHP** → pick **8.1 or newer**. (`mysqli` and `curl` are on by default.)
+3. **Make the database:** Websites & Domains → **Databases** → **Add Database**. Give it a name and a database user with a strong password. Write down the database name, user name and password (HelioHost may put your username in front of the names).
+4. **Get the SQL file ready:** in VS Code, copy `database/smartride_db.sql` to a new file (for example `smartride_heliohost.sql`) and **delete these three lines** near the top. HelioHost doesn't let a SQL file make or delete databases:
+   ```sql
+   DROP DATABASE IF EXISTS smartride_db;
+   CREATE DATABASE smartride_db CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+   USE smartride_db;
+   ```
+5. **Import it:** Databases → your database → **phpMyAdmin** → **Import** → pick `smartride_heliohost.sql` → **Import**.
+6. **Upload the site:** on your laptop, zip the *contents* of the `smartride` folder **without** `.git` and `database`. In Plesk → **Files**, open your site's folder (`httpdocs` for the main domain, or `smartride.helioho.st` for an addon domain), upload the zip and click **Extract**. `index.php` should end up directly in that folder.
+7. **Database settings:** in Files, open `config/config.php` and set:
+   ```php
+   $db_host = 'localhost';
+   $db_user = 'the database user from step 3';
+   $db_pass = 'its password';
+   $db_name = 'the database name from step 3';
+   ```
+8. **API keys:** upload your `config/keys.php` into the `config` folder. It isn't in the zip from GitHub, and it must never go to GitHub.
+9. **https:** Websites & Domains → **SSL/TLS Certificates**: install the free Let's Encrypt certificate if there isn't one yet. Then **Hosting Settings** → tick **Permanent SEO-safe 301 redirect from HTTP to HTTPS**. Phones only allow location, camera and push on https.
+10. **OneSignal:** in your OneSignal app, change the **Site URL** to `https://smartride.helioho.st` (your real address).
+11. **Check it:** open the site, log in as admin → **Analytics → Connected APIs** and press each **Test** button. Then do step 1 of "Before you upload" (passwords) if you haven't yet.
+
+If a page shows **500 Internal Server Error** right after uploading, open `.htaccess` in the main folder and delete the line `Options -Indexes` (some servers don't allow it).
+
+**Gmail:** while your Google project is in Testing, the refresh token stops working after 7 days. Make a new one (see `APIS.md`) the day before you present.
+
+### Updating an existing local database
+
+If your XAMPP database is older than this version, re-import `smartride_db.sql`, or run:
+```sql
+ALTER TABLE fare_transactions ADD alighted_at DATETIME NULL AFTER arrival_sent_at;
+ALTER TABLE payments MODIFY provider ENUM('maya','demo','store','kiosk') NOT NULL;
+```
+
 ## Accounts
 
 | Role | Username | Password |
@@ -135,7 +188,7 @@ The database has these tables for the new features: `route_stops`, `route_paths`
 - **Jeepney lines:** the 24 lines of Bacolod's Local Public Transport Route Plan, traced on the roads. Road lines © OpenStreetMap contributors (ODbL), from the [DASIG Bacolod route pack](https://github.com/andrewnyu/dasig-offline-transit). Lines 1–3, 5–11 and 16 are mapped street by street; the rest are traced from the LPTRP landmarks. Details in `APIS.md`.
 - **Simulated jeepneys:** while `PRESENTATION_TOOLS` is `true` in `config/config.php`, each line has 2 simulated units that drive it by themselves (48 in total). They take no fares. Set it to `false` before going live; the real units are BCN 105–109.
 
-- Cash reloads (partner store, kiosk) are credited right away. Before a real launch, have staff confirm the cash first.
+- Cash reloads (partner store, kiosk) give the passenger a reference like `C-4F2A91BE`. The money lands when an admin presses **Cash received** on the Analytics page. Requests nobody confirms expire after 24 hours.
 - The onboard camera count is still simulated with the **Someone got on / got off** buttons.
 - The maps and the five APIs need internet. Without it, the rest of SmartRide still works.
 - Needs PHP 8.0+ with `mysqli` and `curl`. XAMPP has both on by default.

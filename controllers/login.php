@@ -30,6 +30,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // password_verify checks the typed password against the saved hash.
     // Same message whether the username or the password is wrong, so nobody
     // can use this form to find out which usernames exist.
+    // 5 wrong passwords for one username = locked for 15 minutes, so nobody can keep guessing.
+    if (recent_failed_logins($conn, $username) >= LOGIN_MAX_TRIES) {
+        add_log($conn, $user ? (int) $user['user_id'] : null, 'login_locked', 'Sign-in locked for "' . $username . '"');
+        flash('error', 'Too many wrong passwords. Wait 15 minutes, or use "Forgot your password?".');
+        go('login.php');
+    }
     if (!$user || !password_verify($password, $user['password_hash'])) {
         add_log($conn, $user ? (int) $user['user_id'] : null, 'login_failed', 'Failed sign-in for "' . $username . '"');
         remember_input(['username']);

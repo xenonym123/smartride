@@ -1,5 +1,6 @@
 <?php
-// payments table: wallet reloads through Maya Checkout (or the demo stand-in).
+// payments table: wallet reloads through Maya Checkout, and cash reloads (partner store or
+// kiosk) that wait for an admin to confirm the cash was received.
 
 require_once __DIR__ . '/wallet_model.php';
 require_once __DIR__ . '/notification_model.php';
@@ -97,7 +98,8 @@ function complete_payment($conn, $payment)
             $conn->rollback();
             return false; // already paid (or cancelled / expired)
         }
-        add_reload($conn, $wallet_id, $amount, 'maya');
+        $method = in_array($payment['provider'], ['store', 'kiosk'], true) ? $payment['provider'] : 'maya';
+        add_reload($conn, $wallet_id, $amount, $method);
         credit_wallet($conn, $wallet_id, $amount);
         $conn->commit();
     } catch (Exception $ex) {
@@ -106,9 +108,64 @@ function complete_payment($conn, $payment)
     }
 
     $wallet = get_wallet($conn, $wallet_id);
-    $how = $payment['provider'] === 'demo' ? ' (demo)' : '';
-    add_log($conn, (int) $wallet['user_id'], 'reload', 'Reloaded ' . peso($amount) . ' via Maya Checkout' . $how);
+    $how = ['maya' => 'Maya Checkout', 'demo' => 'Maya Checkout', 'store' => 'cash at a partner store', 'kiosk' => 'cash at a kiosk'];
+    add_log($conn, (int) $wallet['user_id'], 'reload', 'Reloaded ' . peso($amount) . ' via ' . $how[$payment['provider']]);
     add_notification($conn, (int) $wallet['user_id'], 'reload', 'Reload successful',
         peso($amount) . ' added. Your balance is now ' . peso($wallet['balance']) . '.', 'passenger_reload.php');
     return true;
+}
+
+
+// ---------- Cash reloads (partner store / kiosk) ----------
+// The passenger asks for a cash reload and gets a short reference to show at the counter.
+// Nothing is added to the wallet until an admin confirms the cash came in (approve_cash_reload).
+// A request that nobody confirms within 24 hours expires.
+
+function create_cash_request($conn, $wallet_id, $amount, $method)
+{
+    $reference = 'C-' . strtoupper(bin2hex(random_bytes(4)));   // e.g. C-4F2A91BE, easy to read out
+    $stmt = $conn->prepare("INSERT INTO payments (wallet_id, amount, provider, reference_no, status, created_at, expires_at)
+                            VALUES (?, ?, ?, ?, 'pending', NOW(), NOW() + INTERVAL 24 HOUR)");
+    $stmt->bind_param("idss", $wallet_id, $amount, $method, $reference);
+    $stmt->execute();
+    return $reference;
+}
+
+// Old cash requests nobody confirmed: pending -> expired.
+function expire_old_cash_requests($conn)
+{
+    $conn->query("UPDATE payments SET status = 'expired'
+                  WHERE provider IN ('store', 'kiosk') AND status = 'pending' AND expires_at < NOW()");
+}
+
+// Every cash request still waiting, oldest first, with who asked (for the admin).
+function get_waiting_cash_requests($conn)
+{
+    expire_old_cash_requests($conn);
+    $stmt = $conn->prepare("SELECT p.*, u.full_name, u.username FROM payments p
+                            JOIN wallets w ON w.wallet_id = p.wallet_id
+                            JOIN users u ON u.user_id = w.user_id
+                            WHERE p.provider IN ('store', 'kiosk') AND p.status = 'pending'
+                            ORDER BY p.payment_id");
+    $stmt->execute();
+    return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+// One passenger's own waiting cash requests (shown on their Reload page).
+function get_my_cash_requests($conn, $wallet_id)
+{
+    expire_old_cash_requests($conn);
+    $stmt = $conn->prepare("SELECT * FROM payments WHERE wallet_id = ? AND provider IN ('store', 'kiosk') AND status = 'pending'
+                            ORDER BY payment_id DESC");
+    $stmt->bind_param("i", $wallet_id);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+function get_cash_request($conn, $payment_id)
+{
+    $stmt = $conn->prepare("SELECT * FROM payments WHERE payment_id = ? AND provider IN ('store', 'kiosk')");
+    $stmt->bind_param("i", $payment_id);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_assoc();
 }
