@@ -57,7 +57,7 @@
         <?php if ($next): ?>
             <?php $load = min(100, round($next['onboard'] / max(1, $next['capacity']) * 100)); ?>
             <div class="list-row">
-                <div class="who"><b><?= e($next['unit_code']) ?> · <?= e($next['route_name']) ?></b><span>Last seen <?= e($next['seen']) ?> · driven by <?= e(first_name($next['driver_name'])) ?></span></div>
+                <div class="who"><b><?= e($next['unit_code']) ?> · <?= e($next['route_name']) ?></b><span>Last seen <?= e($next['seen']) ?><?= $next['driver_name'] ? ' · driven by ' . e(first_name($next['driver_name'])) : '' ?></span></div>
                 <?php if ($next['seats_left'] > 0): ?>
                     <span class="pill pill-green"><?= (int) $next['seats_left'] ?> seats left</span>
                 <?php else: ?>
