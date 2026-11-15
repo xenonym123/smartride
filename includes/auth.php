@@ -8,6 +8,9 @@ require_once __DIR__ . '/onesignal.php'; // the dashboard footer links each sign
 ini_set('session.cookie_httponly', '1');   // JavaScript can't read the cookie
 ini_set('session.cookie_samesite', 'Lax'); // other sites can't send it along with a form
 ini_set('session.use_strict_mode', '1');   // ignore session ids the server didn't make
+if (is_https()) {
+    ini_set('session.cookie_secure', '1');  // on https, the cookie is never sent over plain http
+}
 session_name('smartride_session');
 
 

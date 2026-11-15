@@ -16,7 +16,10 @@ define('APP_DEBUG', false);
 // false = live service: only real jeepneys (driver phones sending GPS) are on the map.
 define('PRESENTATION_TOOLS', true);
 
-define('QR_WINDOW', 30);     // seconds before a ride QR changes
+define('QR_WINDOW', 30);
+
+// Wrong passwords allowed per username in 15 minutes before sign-in is locked for a while.
+define('LOGIN_MAX_TRIES', 5);     // seconds before a ride QR changes
 define('RELOAD_MIN', 20);    // smallest reload, in pesos
 define('RELOAD_MAX', 5000);  // biggest reload, in pesos
 

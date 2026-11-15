@@ -1,7 +1,7 @@
 <?php
 // Passenger: Reload Wallet.
 //   Maya   -> makes a Maya Checkout and sends the passenger to Maya's payment page
-//   Store / kiosk (cash) -> approved right away in the demo
+//   Store / kiosk (cash) -> a request with a reference; the money lands when an admin confirms it
 require_once '../config/db_connect.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
@@ -60,24 +60,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // ---- Cash at a partner store or kiosk ----
-    $conn->begin_transaction();
-    try {
-        add_reload($conn, $wallet['wallet_id'], $amount, $method);
-        credit_wallet($conn, $wallet['wallet_id'], $amount);
-        $conn->commit();
-    } catch (Exception $ex) {
-        $conn->rollback();
-        throw $ex;
+    // Only a request: nothing is added until an admin confirms the cash was paid.
+    if (count(get_my_cash_requests($conn, $wallet['wallet_id'])) >= 3) {
+        flash('error', 'You already have 3 cash reloads waiting. Pay those first, or wait for them to expire.');
+        go($back);
     }
-    $wallet = get_my_wallet($conn, $user_id);
-    add_log($conn, $user_id, 'reload', 'Reloaded ' . peso($amount) . ' via ' . $methods[$method]);
-    add_notification($conn, $user_id, 'reload', 'Reload successful',
-        peso($amount) . ' added. Your balance is now ' . peso($wallet['balance']) . '.', 'passenger_reload.php');
-    flash('success', peso($amount) . ' added to your wallet.');
+    $reference = create_cash_request($conn, $wallet['wallet_id'], $amount, $method);
+    add_log($conn, $user_id, 'reload_request', 'Asked for a ' . peso($amount) . ' cash reload (' . $reference . ')');
+    notify_role($conn, 'admin', 'cash_request', 'Cash reload to confirm: ' . peso($amount),
+        first_name($_SESSION['full_name']) . ' · reference ' . $reference . ' · ' . $methods[$method] . '.', 'admin_home.php#cash');
+    flash('success', 'Pay ' . peso($amount) . ' at the counter and show reference ' . $reference . '. It\'s added to your wallet once the cash is confirmed.');
     go($back);
 }
 
 $history = get_reloads($conn, $wallet['wallet_id'], 50);
+$waiting = get_my_cash_requests($conn, $wallet['wallet_id']);
 
 $title = 'Reload wallet';
 $current_page = 'passenger_reload.php';

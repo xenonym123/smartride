@@ -1,0 +1,21 @@
+# SmartRide: settings for the whole site (Apache: XAMPP and HelioHost).
+
+# No folder listings: opening /assets/ in a browser shows nothing.
+Options -Indexes
+
+# Notes, SQL, scripts and dot-files are never served.
+<FilesMatch "(\.(md|sql|sh|log|ini|bak)|^\..*)$">
+    Require all denied
+</FilesMatch>
+
+# Safety headers for every page.
+<IfModule mod_headers.c>
+    # Other sites can't show SmartRide inside a frame (stops click-jacking).
+    Header always set X-Frame-Options "SAMEORIGIN"
+    # The browser trusts the file type the server says.
+    Header always set X-Content-Type-Options "nosniff"
+    # Other sites only learn which site a visitor came from, not the full page address.
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    # Only SmartRide itself may ask for location and camera.
+    Header always set Permissions-Policy "geolocation=(self), camera=(self), microphone=()"
+</IfModule>

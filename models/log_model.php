@@ -13,8 +13,8 @@ function add_log($conn, $user_id, $action, $details = '')
 function log_groups()
 {
     return [
-        'login' => ['Logins', ['login', 'logout', 'login_failed', 'register']],
-        'money' => ['Reloads and fares', ['reload', 'fare_paid', 'fare_blocked']],
+        'login' => ['Logins', ['login', 'logout', 'login_failed', 'login_locked', 'register']],
+        'money' => ['Reloads and fares', ['reload', 'reload_request', 'cash_approved', 'cash_rejected', 'fare_paid', 'fare_blocked']],
         'trips' => ['Trips and units', ['trip_start', 'trip_end', 'got_off', 'unit_status', 'unit_added', 'route_added', 'fare_changed']],
         'admin' => ['Account changes', ['user_added', 'user_updated', 'user_status', 'profile_updated', 'password_changed', 'password_reset', 'qr_frozen', 'qr_unfrozen']],
     ];
@@ -79,4 +79,15 @@ function end_login_session($conn, $session_id)
     $stmt = $conn->prepare("UPDATE login_sessions SET logout_at = NOW() WHERE session_id = ? AND logout_at IS NULL");
     $stmt->bind_param("i", $session_id);
     $stmt->execute();
+}
+
+// Wrong passwords for this username in the last 15 minutes (for the sign-in limit).
+function recent_failed_logins($conn, $username)
+{
+    $details = 'Failed sign-in for "' . mb_substr($username, 0, 200) . '"';
+    $stmt = $conn->prepare("SELECT COUNT(*) AS n FROM activity_logs
+                            WHERE action = 'login_failed' AND details = ? AND logged_at > NOW() - INTERVAL 15 MINUTE");
+    $stmt->bind_param("s", $details);
+    $stmt->execute();
+    return (int) $stmt->get_result()->fetch_assoc()['n'];
 }

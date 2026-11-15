@@ -61,7 +61,7 @@ function api_request($method, $url, $headers = [], $body = null, $timeout = 15, 
 // Used for links that leave the site: Maya's return pages, email links, push links.
 function app_url($page)
 {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $scheme = is_https() ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     return $scheme . '://' . $host . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/') . '/' . $page;
 }

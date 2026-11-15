@@ -205,6 +205,14 @@ function error_class($errors, $key)
 }
 
 // Trimmed text from a form or the URL.
+// Is this page on https? Also true behind HelioHost's proxy, which passes X-Forwarded-Proto.
+function is_https()
+{
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+        || (($_SERVER['SERVER_PORT'] ?? '') === '443');
+}
+
 function input($key, $default = '')
 {
     $value = $_POST[$key] ?? $_GET[$key] ?? $default;
