@@ -188,6 +188,7 @@ The database has these tables for the new features: `route_stops`, `route_paths`
 - **Jeepney lines:** the 24 lines of Bacolod's Local Public Transport Route Plan, traced on the roads. Road lines © OpenStreetMap contributors (ODbL), from the [DASIG Bacolod route pack](https://github.com/andrewnyu/dasig-offline-transit). Lines 1–3, 5–11 and 16 are mapped street by street; the rest are traced from the LPTRP landmarks. Details in `APIS.md`.
 - **Simulated jeepneys:** while `PRESENTATION_TOOLS` is `true` in `config/config.php`, each line has 2 simulated units that drive it by themselves (48 in total). They take no fares. Set it to `false` before going live; the real units are BCN 105–109.
 
+- **Riding the same jeepney again:** after **I got off**, the next scan on that trip is a new ride and a new fare. Without the tap, a second scan within 10 minutes is "already paid" (the same QR shown twice); later than that, the old ride is closed and the new one charged. Change the 10 minutes with `RIDE_AGAIN_AFTER_MIN` in `config/config.php`.
 - Cash reloads (partner store, kiosk) give the passenger a reference like `C-4F2A91BE`. The money lands when an admin presses **Cash received** on the Analytics page. Requests nobody confirms expire after 24 hours.
 - The onboard camera count is still simulated with the **Someone got on / got off** buttons.
 - The maps and the five APIs need internet. Without it, the rest of SmartRide still works.
