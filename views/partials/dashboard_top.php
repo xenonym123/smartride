@@ -14,6 +14,7 @@ $menus = [
     ],
     'driver' => [
         ['driver_home.php', 'gauge', 'Home'],
+        ['driver_navigate.php', 'pin', 'Navigate'],
         ['driver_count.php', 'users', 'Passenger Count'],
         ['driver_scan.php', 'scan', 'QR Scanner'],
         ['driver_earnings.php', 'peso', 'Earnings'],

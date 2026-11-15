@@ -88,6 +88,9 @@ function get_saved_route_path($conn, $route_id)
 
 function save_route_path($conn, $route_id, $points, $meters, $seconds, $source)
 {
+    $stmt = $conn->prepare("DELETE FROM route_guidance WHERE route_id = ?"); // directions follow the road line
+    $stmt->bind_param("i", $route_id);
+    $stmt->execute();
     $json = json_encode($points);
     $stmt = $conn->prepare("REPLACE INTO route_paths (route_id, points, meters, seconds, source, updated_at)
                             VALUES (?, ?, ?, ?, ?, NOW())");
@@ -99,6 +102,9 @@ function save_route_path($conn, $route_id, $points, $meters, $seconds, $source)
 // ('osm' / 'lptrp') is kept: changing its landmarks doesn't change the road it drives.
 function clear_route_path($conn, $route_id)
 {
+    $stmt = $conn->prepare("DELETE FROM route_guidance WHERE route_id = ?"); // directions follow the road line
+    $stmt->bind_param("i", $route_id);
+    $stmt->execute();
     $stmt = $conn->prepare("DELETE FROM route_paths WHERE route_id = ? AND source IN ('geoapify', 'straight')");
     $stmt->bind_param("i", $route_id);
     $stmt->execute();
