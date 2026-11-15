@@ -27,7 +27,9 @@ function onesignal_external_id($user_id)
 
 // Sends one push to one user. Returns true if OneSignal took it.
 // If it fails we only log it: the alert is still saved and shown inside SmartRide.
-function onesignal_send($user_id, $title, $body, $link = '')
+// $urgent: high priority so the phone shows it (and vibrates) right away, and it's dropped after
+// 10 minutes, because "you're almost at your stop" is useless once you're past it.
+function onesignal_send($user_id, $title, $body, $link = '', $urgent = false)
 {
     if (!onesignal_ready()) {
         return false;
@@ -39,6 +41,10 @@ function onesignal_send($user_id, $title, $body, $link = '')
         'headings'        => ['en' => $title],
         'contents'        => ['en' => $body !== '' ? $body : $title],
     ];
+    if ($urgent) {
+        $message['priority'] = 10;
+        $message['ttl'] = 600;
+    }
     // OneSignal only accepts https links. On localhost the push still opens the site.
     if ($link !== '' && strpos(app_url($link), 'https://') === 0) {
         $message['url'] = app_url($link);

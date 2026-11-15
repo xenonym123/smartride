@@ -8,14 +8,15 @@ require_once __DIR__ . '/philsms.php';
 require_once __DIR__ . '/gmail.php';
 
 // Adds one message to the outbox. $channel is 'push', 'sms' or 'email'.
-function queue_message($channel, $to, $title, $body, $link = '')
+// $urgent: an alert that must arrive now ("arriving at your stop"), see onesignal_send().
+function queue_message($channel, $to, $title, $body, $link = '', $urgent = false)
 {
     if (empty($GLOBALS['smartride_outbox'])) {
         $GLOBALS['smartride_outbox'] = [];
         ob_start();                                   // hold the page so we can finish it early
         register_shutdown_function('send_outbox');    // runs when the page is done
     }
-    $GLOBALS['smartride_outbox'][] = ['channel' => $channel, 'to' => $to, 'title' => $title, 'body' => $body, 'link' => $link];
+    $GLOBALS['smartride_outbox'][] = ['channel' => $channel, 'to' => $to, 'title' => $title, 'body' => $body, 'link' => $link, 'urgent' => $urgent];
 }
 
 function send_outbox()
@@ -41,7 +42,7 @@ function send_outbox()
     // 2. Now send what was queued. Each sender logs its own errors and never stops the others.
     foreach ($GLOBALS['smartride_outbox'] as $msg) {
         if ($msg['channel'] === 'push') {
-            onesignal_send($msg['to'], $msg['title'], $msg['body'], $msg['link']);
+            onesignal_send($msg['to'], $msg['title'], $msg['body'], $msg['link'], $msg['urgent']);
         } elseif ($msg['channel'] === 'sms') {
             philsms_send($msg['to'], 'SmartRide: ' . $msg['title'] . '. ' . $msg['body']);
         } elseif ($msg['channel'] === 'email') {

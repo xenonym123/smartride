@@ -497,12 +497,33 @@
         let d;
         try { d = await SMARTRIDE.get(after === null ? url : `${url}?after=${after}`); } catch (e) { return; }
         badges().forEach((b) => { b.textContent = d.unread; b.hidden = !d.unread; });
-        // OneSignal already pushed these. Only show them here if push is off for this browser.
-        if (after !== null && !SMARTRIDE.pushIsOn()) d.items.forEach((n) => SMARTRIDE.popup(n));
+        if (after !== null) {
+          d.items.forEach((n) => {
+            // "Arriving at your stop" / "Stop at ...": vibrate the phone and always show it here.
+            if (SMARTRIDE.URGENT.includes(n.type)) { SMARTRIDE.buzz(); SMARTRIDE.toast(n); return; }
+            // The rest: OneSignal already pushed them. Only show them here if push is off.
+            if (!SMARTRIDE.pushIsOn()) SMARTRIDE.popup(n);
+          });
+        }
         after = d.latest;
       };
       check();
       setInterval(check, 10000);
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('[data-buzz-test]')) return;
+        if (!SMARTRIDE.buzz()) SMARTRIDE.toast({ title: "This phone can't vibrate from the browser", body: "iPhones don't allow it. You'll still get the alert on screen and as a push." });
+      });
+    },
+
+    // Alerts that make the phone vibrate.
+    URGENT: ['arriving', 'stop_ahead'],
+
+    // Vibrates the phone: long, short, long. Android browsers only (iPhones don't allow it).
+    // The browser only lets a page vibrate after the person has tapped it once.
+    // Returns false when this browser can't vibrate.
+    buzz() {
+      if (!('vibrate' in navigator)) return false;
+      try { return navigator.vibrate([400, 150, 400, 150, 800]); } catch (e) { return false; }
     },
 
     /** One alert: a real system notification if allowed, otherwise an in-page card. */

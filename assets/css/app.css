@@ -450,3 +450,4 @@ table.data .r { text-align: right; padding-right: 0; }
   .lines-layout .map { height: 58vh; min-height: 340px; }
 }
 .loc-note { background: var(--amber-bg); color: var(--ink); border-radius: 10px; padding: 8px 12px; }
+.linklike { background: none; border: 0; padding: 0; color: var(--brand); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
