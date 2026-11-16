@@ -18,7 +18,8 @@ function add_notification($conn, $user_id, $type, $title, $body = '', $link = ''
     $stmt->execute();
 
     // ONESIGNAL push (does nothing without keys).
-    queue_message('push', $user_id, $title, $body, $link);
+    // "Arriving at your stop" (passenger) and "Stop at ..." (driver) are urgent: sent right away.
+    queue_message('push', $user_id, $title, $body, $link, in_array($type, ['arriving', 'stop_ahead'], true));
 
     // Who is this, and did they ask for texts / emails?
     $stmt = $conn->prepare("SELECT phone, email, sms_alerts, email_alerts FROM users WHERE user_id = ?");

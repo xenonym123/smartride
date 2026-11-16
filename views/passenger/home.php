@@ -28,6 +28,10 @@
         <?= csrf_field() ?><input type="hidden" name="action" value="got_off">
         <button class="btn sm <?= $current_ride['arrival_sent_at'] ? '' : 'ghost' ?>" type="submit"><?= icon('check') ?>I got off</button>
     </form>
+    <?php if ($current_ride['dest_name'] && !$current_ride['arrival_sent_at']): ?>
+        <p class="hint" style="margin:10px 0 0">Keep SmartRide open: your phone vibrates when you're close.
+            <button type="button" class="linklike" data-buzz-test>Test vibration</button></p>
+    <?php endif; ?>
 </div>
 <?php endif; ?>
 

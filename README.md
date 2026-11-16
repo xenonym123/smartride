@@ -74,6 +74,11 @@ If your XAMPP database is older than this version, re-import `smartride_db.sql`,
 ```sql
 ALTER TABLE fare_transactions ADD alighted_at DATETIME NULL AFTER arrival_sent_at;
 ALTER TABLE payments MODIFY provider ENUM('maya','demo','store','kiosk') NOT NULL;
+CREATE TABLE route_guidance (
+  route_id SMALLINT UNSIGNED NOT NULL, guide MEDIUMTEXT NOT NULL, updated_at DATETIME NOT NULL,
+  PRIMARY KEY (route_id),
+  CONSTRAINT fk_guidance_route FOREIGN KEY (route_id) REFERENCES routes (route_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 ```
 
 ## Accounts
@@ -188,6 +193,8 @@ The database has these tables for the new features: `route_stops`, `route_paths`
 - **Jeepney lines:** the 24 lines of Bacolod's Local Public Transport Route Plan, traced on the roads. Road lines © OpenStreetMap contributors (ODbL), from the [DASIG Bacolod route pack](https://github.com/andrewnyu/dasig-offline-transit). Lines 1–3, 5–11 and 16 are mapped street by street; the rest are traced from the LPTRP landmarks. Details in `APIS.md`.
 - **Simulated jeepneys:** while `PRESENTATION_TOOLS` is `true` in `config/config.php`, each line has 2 simulated units that drive it by themselves (48 in total). They take no fares. Set it to `false` before going live; the real units are BCN 105–109.
 
+- **Driver navigation:** drivers on a trip open **Navigate** for turn-by-turn voice directions along their line ("In 250 meters, turn left onto Lacson Street"), with a pop-up for each turn and landmark. Details in `APIS.md`.
+- **Vibration:** when the "Arriving at …" alert comes, the passenger's phone vibrates (long, short, long), and so does the driver's for "Stop at …". It works in Android browsers while SmartRide is open, after the person has tapped the page once (browsers require that). iPhones don't allow web pages to vibrate. Those two alerts are also sent as urgent pushes, which phones show (and vibrate for) right away, even when SmartRide is closed.
 - **Riding the same jeepney again:** after **I got off**, the next scan on that trip is a new ride and a new fare. Without the tap, a second scan within 10 minutes is "already paid" (the same QR shown twice); later than that, the old ride is closed and the new one charged. Change the 10 minutes with `RIDE_AGAIN_AFTER_MIN` in `config/config.php`.
 - Cash reloads (partner store, kiosk) give the passenger a reference like `C-4F2A91BE`. The money lands when an admin presses **Cash received** on the Analytics page. Requests nobody confirms expire after 24 hours.
 - The onboard camera count is still simulated with the **Someone got on / got off** buttons.

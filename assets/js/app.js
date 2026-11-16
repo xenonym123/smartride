@@ -98,6 +98,7 @@
       if (!('geolocation' in navigator)) { setState('off', 'No GPS on this device'); return; }
       let last = 0;
       navigator.geolocation.watchPosition((p) => {
+        if (SMARTRIDE.gpsPaused) return; // the Navigate screen is simulating a drive
         if (Date.now() - last < 20000) return;
         last = Date.now();
         SMARTRIDE.post(url, { lat: p.coords.latitude, lng: p.coords.longitude })
@@ -120,6 +121,339 @@
      * GEOLOCATION API (passenger side). Asks the browser where the passenger is.
      * Calls onFound({lat, lng, accuracy}) or onError(message).
      */
+    // ---------- Driver: turn-by-turn voice navigation along the trip's line ----------
+    // The line's road and its turns come from api_navigation.php. The phone's GPS (or a simulated
+    // drive, for presentations) moves a marker along the line. Each turn is shown in the banner,
+    // popped up, and spoken ("In 200 meters, turn left onto Lacson Street"). Landmarks are announced
+    // with how many riders get off there.
+    driverNav(opts) {
+      const $ = (id) => document.getElementById(id);
+      const el = $('navMap');
+      if (!el || typeof L === 'undefined') return;
+      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const ARROWS = { left: -90, right: 90, slight_left: -45, slight_right: 45, sharp_left: -135, sharp_right: 135 };
+      const arrowSvg = (kind) => {
+        if (kind === 'stop') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>';
+        if (kind === 'uturn') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20V9a5 5 0 0 1 10 0v6"/><path d="m15 12 4 4 4-4"/></svg>';
+        if (kind === 'end') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4"/><path d="M4 4h13l-2 4 2 4H4"/></svg>';
+        const deg = ARROWS[kind] ?? 0;
+        return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${deg}deg)"><path d="M12 20V5"/><path d="m6 11 6-6 6 6"/></svg>`;
+      };
+      const fmt = (m) => (m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.max(10, Math.round(m / 10) * 10) + ' m');
+      const sayDist = (m) => (m >= 1000 ? (Math.round(m / 100) / 10) + ' kilometers' : Math.max(50, Math.round(m / 50) * 50) + ' meters');
+
+      let guide = null;      // from api_navigation.php
+      let cum = [];          // meters from the start to each point of the line
+      let progress = null;   // how far along the line the jeepney is (meters)
+      let pos = null;
+      let started = false;
+      let voiceOn = true;
+      try { voiceOn = localStorage.getItem('navVoice') !== 'off'; } catch (e) { /* ignore */ }
+      let follow = true;
+      let off = 0;           // GPS readings in a row that were off the line
+      let offRoute = false;
+      let said = {};         // which announcements were made on this lap
+      let lastShown = '';
+      let gettingOff = {};
+      let wakeLock = null;
+      let sim = null;
+      let simSent = 0;
+
+      // ---- map
+      const map = L.map(el, { zoomControl: true });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+      map.on('dragstart', () => { follow = false; $('navCenter').hidden = !started; });
+      const me = L.marker([0, 0], { icon: L.divIcon({ className: '', iconSize: [36, 36], iconAnchor: [18, 18], html: '<div class="nav-me"><svg viewBox="0 0 24 24"><path d="M12 2 20 21 12 17 4 21Z" fill="currentColor"/></svg></div>' }), zIndexOffset: 1000 });
+      const turnLayer = L.layerGroup().addTo(map);
+
+      // ---- voice (Web Speech API; works offline on most phones)
+      const speak = (text, interrupt) => {
+        if (!voiceOn || !('speechSynthesis' in window)) return;
+        try {
+          if (interrupt) speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(text);
+          const voices = speechSynthesis.getVoices();
+          u.voice = voices.find((v) => v.lang === 'en-PH') || voices.find((v) => /^en(-|_)/.test(v.lang)) || null;
+          u.lang = u.voice ? u.voice.lang : 'en-US';
+          u.rate = 1;
+          speechSynthesis.speak(u);
+        } catch (e) { /* no voice on this device */ }
+      };
+      // The pop-up for each instruction.
+      const pop = (kind, title, body) => {
+        document.querySelectorAll('.nav-pop').forEach((n) => n.remove());   // one pop-up at a time
+        const box = document.createElement('div');
+        box.className = 'nav-pop';
+        box.innerHTML = `<div class="nav-arrow sm">${arrowSvg(kind)}</div><div><b>${esc(title)}</b>${body ? `<span>${esc(body)}</span>` : ''}</div>`;
+        document.body.appendChild(box);
+        requestAnimationFrame(() => box.classList.add('show'));
+        setTimeout(() => { box.classList.remove('show'); setTimeout(() => box.remove(), 400); }, 4500);
+      };
+
+      // ---- where on the line is a point? Looks near the last known spot so a road the line
+      //      drives twice (out and back) doesn't make the jeepney jump to the other side.
+      const XY = (lat, lng, lat0) => [lng * 111320 * Math.cos(lat0 * Math.PI / 180), lat * 110540];
+      const locate = (lat, lng) => {
+        const pts = guide.points;
+        let best = null;
+        const lo = progress === null ? 0 : progress - 150;
+        const hi = progress === null ? Infinity : progress + 800;
+        const [px, py] = XY(lat, lng, lat);
+        for (let i = 1; i < pts.length; i++) {
+          if (cum[i] < lo || cum[i - 1] > hi) continue;
+          const [ax, ay] = XY(pts[i - 1][0], pts[i - 1][1], lat);
+          const [bx, by] = XY(pts[i][0], pts[i][1], lat);
+          const dx = bx - ax; const dy = by - ay; const len = dx * dx + dy * dy;
+          const t = len ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len)) : 0;
+          const d = Math.hypot(px - ax - t * dx, py - ay - t * dy);
+          if (!best || d < best.d) best = { d, along: cum[i - 1] + t * (cum[i] - cum[i - 1]), i };
+        }
+        return best;
+      };
+      const pointAt = (m) => {
+        const pts = guide.points;
+        for (let i = 1; i < pts.length; i++) {
+          if (cum[i] >= m) {
+            const t = cum[i] > cum[i - 1] ? (m - cum[i - 1]) / (cum[i] - cum[i - 1]) : 0;
+            return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t, i];
+          }
+        }
+        return [...pts[pts.length - 1], pts.length - 1];
+      };
+      const headingAt = (i) => {
+        const pts = guide.points;
+        const a = pts[Math.max(0, i - 1)]; const b = pts[Math.min(pts.length - 1, Math.max(1, i))];
+        const y = Math.sin((b[1] - a[1]) * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180);
+        const x = Math.cos(a[0] * Math.PI / 180) * Math.sin(b[0] * Math.PI / 180) - Math.sin(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * Math.cos((b[1] - a[1]) * Math.PI / 180);
+        return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+      };
+
+      // ---- the banner and the "coming up" list
+      const upcoming = () => guide.steps.filter((s) => s.at > progress + 3);
+      const stepTitle = (s) => s.text;
+      const riders = (name) => gettingOff[name] || 0;
+      const render = () => {
+        if (!guide) return;
+        const next = progress === null ? guide.steps[0] : upcoming()[0];
+        const after = progress === null ? guide.steps[1] : upcoming()[1];
+        if (offRoute) {
+          $('navArrow').innerHTML = arrowSvg('uturn');
+          $('navDist').textContent = 'Off route';
+          $('navText').textContent = 'Head back to the line on the map.';
+          $('navThen').textContent = '';
+          $('navBanner').dataset.state = 'off';
+        } else if (!next) {
+          $('navArrow').innerHTML = arrowSvg('end');
+          $('navDist').textContent = progress === null ? 'Ready' : fmt(Math.max(0, guide.total - progress));
+          $('navText').textContent = 'End of line ' + guide.line.id;
+          $('navThen').textContent = '';
+          $('navBanner').dataset.state = '';
+        } else {
+          const d = progress === null ? null : next.at - progress;
+          $('navArrow').innerHTML = arrowSvg(next.kind);
+          $('navDist').textContent = d === null ? (started ? 'Finding you…' : 'Ready') : (d < 30 ? 'Now' : fmt(d));
+          const n = next.type === 'stop' ? riders(next.text) : 0;
+          $('navText').textContent = next.type === 'stop' ? `${next.text}${n ? ` · ${n} getting off` : ''}` : next.text;
+          $('navThen').textContent = after ? `Then: ${stepTitle(after)}` : '';
+          $('navBanner').dataset.state = next.type === 'stop' ? 'stop' : '';
+        }
+        const list = (progress === null ? guide.steps : upcoming()).slice(0, 6);
+        $('navList').innerHTML = list.map((s) => {
+          const d = progress === null ? s.at : s.at - progress;
+          const n = s.type === 'stop' ? riders(s.text) : 0;
+          return `<li><span class="nav-arrow xs">${arrowSvg(s.kind)}</span><span class="nav-li-text">${esc(stepTitle(s))}${n ? ` <span class="pill pill-amber">${n} getting off</span>` : ''}</span><span class="muted">${fmt(d)}</span></li>`;
+        }).join('') || '<li class="muted">Nothing left on this lap.</li>';
+        $('navNote').textContent = guide.complete ? '' : 'Street names are still loading. Turns are shown and spoken without them for now.';
+      };
+
+      // ---- announcements: about 250 m before a turn, and again at the turn
+      let lastAt = null;     // where the jeepney was at the previous reading
+      const announce = () => {
+        if (offRoute) return;
+        // A turn passed between two readings (fast driving, or a slow GPS) is still announced, once.
+        if (lastAt !== null && progress > lastAt) {
+          const passed = guide.steps.filter((s) => s.type === 'turn' && s.at > lastAt && s.at <= progress + 3 && said[s.at + ':' + s.kind] !== 'now');
+          const s = passed[passed.length - 1];
+          if (s) {
+            said[s.at + ':' + s.kind] = 'now';
+            speak(s.text + '.', true);
+            pop(s.kind, s.text, '');
+          }
+        }
+        lastAt = progress;
+        for (const s of upcoming().slice(0, 3)) {
+          const d = s.at - progress;
+          const key = s.at + ':' + s.kind;
+          if (s.type === 'turn') {
+            if (d <= 40 && said[key] !== 'now') {
+              said[key] = 'now';
+              speak(s.text + (s.street ? '' : ' now') + '.', true);
+              pop(s.kind, s.text, '');
+              if ('vibrate' in navigator) { try { navigator.vibrate(200); } catch (e) { /* not allowed yet */ } }
+            } else if (d <= 260 && d > 90 && !said[key]) {
+              said[key] = 'soon';
+              speak(`In ${sayDist(d)}, ${s.text.charAt(0).toLowerCase()}${s.text.slice(1)}.`);
+              pop(s.kind, `In ${fmt(d)}`, s.text);
+            }
+          } else if (d <= 150 && !said[key]) {
+            said[key] = 'stop';
+            const n = riders(s.text);
+            speak(`Approaching ${s.text}.${n ? ` ${n} ${n === 1 ? 'rider is' : 'riders are'} getting off here.` : ''}`);
+            pop('stop', s.text, n ? `${n} getting off` : 'Landmark ahead');
+            if (n) SMARTRIDE.buzz();
+          }
+        }
+        // End of the line: start the next lap.
+        if (guide.total - progress < 25 && !said.end) {
+          said = { end: true };
+          lastAt = null;
+          speak(`End of line ${guide.line.id}. Starting the line again.`);
+          pop('end', `End of line ${guide.line.id}`, 'Starting the line again');
+          progress = 0;
+        }
+      };
+
+      // ---- one GPS reading (real or simulated)
+      const onPosition = (lat, lng, accuracy) => {
+        pos = [lat, lng];
+        const hit = locate(lat, lng);
+        if (!hit) return;
+        if (hit.d > 60 && accuracy < 80) {
+          off++;
+          if (off >= 3 && !offRoute) {
+            offRoute = true;
+            speak("You're off the route. Head back to the line.", true);
+            pop('uturn', 'Off route', 'Head back to the line on the map');
+          }
+        } else {
+          if (offRoute) { offRoute = false; speak('Back on the route.', true); }
+          off = 0;
+          if (progress === null || hit.along > progress - 40) progress = hit.along;
+          if (said.end && progress > 100) delete said.end;
+        }
+        me.setLatLng(pos);
+        if (!map.hasLayer(me)) me.addTo(map);
+        const turnTo = headingAt(hit.i);
+        const svg = me.getElement()?.querySelector('svg');
+        if (svg) svg.style.transform = `rotate(${turnTo}deg)`;
+        if (follow) map.setView(pos, Math.max(map.getZoom(), 17), { animate: true });
+        if (!offRoute && progress !== null) announce();
+        render();
+      };
+
+      // ---- start: needs a tap so the phone allows voice, vibration and keeping the screen on
+      const keepAwake = async () => {
+        try { if ('wakeLock' in navigator && document.visibilityState === 'visible') wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* not allowed */ }
+      };
+      document.addEventListener('visibilitychange', () => { if (started && document.visibilityState === 'visible') keepAwake(); });
+      let watchId = null;
+      const startGps = () => {
+        if (watchId !== null || !('geolocation' in navigator)) return;
+        watchId = navigator.geolocation.watchPosition(
+          (p) => { if (!sim) onPosition(p.coords.latitude, p.coords.longitude, p.coords.accuracy || 50); },
+          (err) => { if (err.code === 1) SMARTRIDE.toast({ title: 'Location is blocked', body: 'Allow location for this site so navigation can follow you.' }); },
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
+        );
+      };
+      $('navStart').addEventListener('click', () => {
+        if (!guide) return;
+        started = true;
+        $('navStart').hidden = true;
+        $('navVoice').hidden = false;
+        $('navVoice').textContent = voiceOn ? 'Voice on' : 'Voice off';
+        keepAwake();
+        speak(`Starting line ${guide.line.id}, ${guide.line.short}. Follow the line on the map.`, true);
+        pop('stop', `Line ${guide.line.id} · ${guide.line.short}`, 'Navigation started');
+        startGps();
+        render();
+      });
+      $('navVoice').addEventListener('click', () => {
+        voiceOn = !voiceOn;
+        try { localStorage.setItem('navVoice', voiceOn ? 'on' : 'off'); } catch (e) { /* ignore */ }
+        if (!voiceOn && 'speechSynthesis' in window) speechSynthesis.cancel();
+        $('navVoice').textContent = voiceOn ? 'Voice on' : 'Voice off';
+        if (voiceOn) speak('Voice on.', true);
+      });
+      $('navCenter').addEventListener('click', () => {
+        follow = true;
+        $('navCenter').hidden = true;
+        if (pos) map.setView(pos, 17);
+      });
+
+      // ---- presentation: drive the line without moving (PRESENTATION_TOOLS)
+      const simBtn = $('navSim');
+      if (simBtn && opts.simulate) {
+        simBtn.addEventListener('click', () => {
+          if (!started) $('navStart').click();
+          if (sim) {
+            clearInterval(sim); sim = null; SMARTRIDE.gpsPaused = false;
+            simBtn.textContent = 'Simulate drive';
+            return;
+          }
+          SMARTRIDE.gpsPaused = true;               // the phone's own GPS isn't sent while simulating
+          simBtn.textContent = 'Stop simulation';
+          let at = progress === null ? 0 : progress;
+          sim = setInterval(() => {
+            const speed = Number($('navSimSpeed').value || 1);
+            at += 7 * speed;                         // 7 m/s ≈ 25 km/h
+            if (at >= guide.total) at = 0;
+            const p = pointAt(at);
+            onPosition(p[0], p[1], 5);
+            // Send it like a real GPS reading, so passengers see the jeepney move and get "arriving".
+            if (Date.now() - simSent > 4000) {
+              simSent = Date.now();
+              SMARTRIDE.post(opts.gpsUrl, { lat: p[0].toFixed(6), lng: p[1].toFixed(6) }).catch(() => {});
+            }
+          }, 1000);
+        });
+      }
+
+      // ---- data
+      const load = async () => {
+        const d = await SMARTRIDE.get(opts.url + (progress !== null ? `?from=${Math.round(progress)}` : ''));
+        if (!d.ok) throw new Error(d.message);
+        const first = !guide;
+        guide = d;
+        gettingOff = d.getting_off || {};
+        cum = [0];
+        for (let i = 1; i < d.points.length; i++) cum.push(cum[i - 1] + SMARTRIDE.distanceKm(d.points[i - 1][0], d.points[i - 1][1], d.points[i][0], d.points[i][1]) * 1000);
+        if (first) {
+          el.querySelector('.map-note')?.remove();   // just the "Loading" note, not the map
+          map.invalidateSize();
+          L.polyline(d.points, { color: '#fff', weight: 11, opacity: 0.9 }).addTo(map);
+          L.polyline(d.points, { color: d.line.color, weight: 6 }).addTo(map);
+          map.fitBounds(d.points, { padding: [20, 20] });
+        }
+        turnLayer.clearLayers();
+        d.steps.forEach((s) => {
+          if (s.type === 'stop') {
+            L.circleMarker([s.lat, s.lng], { radius: 7, color: d.line.color, weight: 3, fillColor: '#fff', fillOpacity: 1 }).bindTooltip(esc(s.text)).addTo(turnLayer);
+          } else {
+            L.circleMarker([s.lat, s.lng], { radius: 4, color: '#1F2340', weight: 2, fillColor: '#fff', fillOpacity: 1 }).bindTooltip(esc(s.text)).addTo(turnLayer);
+          }
+        });
+        render();
+        return d;
+      };
+      load().then((d) => {
+        // Street names still loading on the server: ask again until they're all in.
+        const more = setInterval(async () => {
+          if (guide.complete) { clearInterval(more); return; }
+          try { await load(); } catch (e) { /* try again next time */ }
+        }, 15000);
+        setInterval(async () => {
+          try { const r = await SMARTRIDE.get(opts.url + '?riders=1'); gettingOff = r.getting_off || {}; render(); } catch (e) { /* ignore */ }
+        }, 30000);
+      }).catch((e) => {
+        const note = el.querySelector('.map-note') || el.appendChild(document.createElement('div'));
+        note.className = 'map-note';
+        note.textContent = e.message || "Couldn't load the line.";
+        $('navStart').disabled = true;
+      });
+      // Chrome loads its voices a moment after the page.
+      if ('speechSynthesis' in window) speechSynthesis.getVoices();
+    },
+
     // ---------- Jeepney lines map (Track a Jeepney, admin Jeepney Tracking) ----------
     // At first every line is drawn in its own color. Pick a line and only that line, its
     // landmarks and its jeepneys stay on the map; pick another and the first one goes away.
@@ -497,12 +831,33 @@
         let d;
         try { d = await SMARTRIDE.get(after === null ? url : `${url}?after=${after}`); } catch (e) { return; }
         badges().forEach((b) => { b.textContent = d.unread; b.hidden = !d.unread; });
-        // OneSignal already pushed these. Only show them here if push is off for this browser.
-        if (after !== null && !SMARTRIDE.pushIsOn()) d.items.forEach((n) => SMARTRIDE.popup(n));
+        if (after !== null) {
+          d.items.forEach((n) => {
+            // "Arriving at your stop" / "Stop at ...": vibrate the phone and always show it here.
+            if (SMARTRIDE.URGENT.includes(n.type)) { SMARTRIDE.buzz(); SMARTRIDE.toast(n); return; }
+            // The rest: OneSignal already pushed them. Only show them here if push is off.
+            if (!SMARTRIDE.pushIsOn()) SMARTRIDE.popup(n);
+          });
+        }
         after = d.latest;
       };
       check();
       setInterval(check, 10000);
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('[data-buzz-test]')) return;
+        if (!SMARTRIDE.buzz()) SMARTRIDE.toast({ title: "This phone can't vibrate from the browser", body: "iPhones don't allow it. You'll still get the alert on screen and as a push." });
+      });
+    },
+
+    // Alerts that make the phone vibrate.
+    URGENT: ['arriving', 'stop_ahead'],
+
+    // Vibrates the phone: long, short, long. Android browsers only (iPhones don't allow it).
+    // The browser only lets a page vibrate after the person has tapped it once.
+    // Returns false when this browser can't vibrate.
+    buzz() {
+      if (!('vibrate' in navigator)) return false;
+      try { return navigator.vibrate([400, 150, 400, 150, 800]); } catch (e) { return false; }
     },
 
     /** One alert: a real system notification if allowed, otherwise an in-page card. */

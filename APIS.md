@@ -51,6 +51,26 @@
 
 ---
 
+## 1b. Driver navigation: turn-by-turn voice directions
+
+Drivers on a trip get **Navigate** in their menu. It follows the line of the trip:
+
+- A big banner shows the next instruction and its distance ("250 m · Turn left onto San Juan Street"), and the one after it.
+- A **voice** says it twice: about 250 m before ("In 250 meters, turn left onto San Juan Street.") and at the turn. Landmarks are announced too, with how many riders get off there ("Approaching SM City Bacolod. 2 riders are getting off here."). The voice is the phone's own (Web Speech API), so it needs no internet and no key.
+- Each instruction also **pops up** at the bottom of the screen. If the jeepney leaves the line, it says "You're off the route."
+- The screen stays on while navigating (Screen Wake Lock), and the phone's GPS keeps going to passengers as usual.
+- **Simulate drive** (only while `PRESENTATION_TOOLS` is on) drives the line at 1×, 5× or 10× speed for a presentation, with the voice, and sends the jeepney's position, so passengers see it move and get their "arriving" alert.
+
+| What | File | Line |
+| --- | --- | --- |
+| Turns found from the line's shape (direction 25 m before vs after; ≥ 30° = a turn) | `includes/guidance.php` | 53 |
+| **Geoapify reverse geocoding, `type=street`**: the street after each turn | `includes/guidance.php` | 117 |
+| Saved per line; street names filled in a few seconds at a time, turns ahead first | `includes/guidance.php` | 198 |
+| JSON for the Navigate screen | `controllers/api_navigation.php` | 1 |
+| Following the jeepney along the line, banner, voice, pop-ups, simulation | `assets/js/app.js` | 129 |
+
+Without a Geoapify key, the directions still work: "Turn left", "Turn right", landmarks, just without street names. Gentle bends that stay on the same street aren't announced.
+
 ## 2. PhilSMS: "fare paid" and "arriving at your stop"
 
 | What | File | Line |

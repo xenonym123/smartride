@@ -225,6 +225,16 @@ CREATE TABLE geo_cache (
   PRIMARY KEY (lat_key, lng_key)
 ) ENGINE=InnoDB;
 
+-- Turn-by-turn directions for each line (driver's Navigate screen), made from the line's road
+-- line, with street names from Geoapify filled in over time. Rebuilt when the line changes.
+CREATE TABLE route_guidance (
+  route_id    SMALLINT UNSIGNED NOT NULL,
+  guide       MEDIUMTEXT NOT NULL,                 -- JSON: line points, turns, landmarks
+  updated_at  DATETIME NOT NULL,
+  PRIMARY KEY (route_id),
+  CONSTRAINT fk_guidance_route FOREIGN KEY (route_id) REFERENCES routes (route_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- Forgot-password links. Only a SHA-256 hash of the token is saved, never the token itself.
 CREATE TABLE password_resets (
   reset_id    INT UNSIGNED NOT NULL AUTO_INCREMENT,
